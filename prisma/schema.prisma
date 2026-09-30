@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CONSULTANT
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  login     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CONSULTANT)
+  createdAt DateTime @default(now())
+}
+
+model PrintTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  widthMm   Float
+  heightMm  Float
+  isDefault Boolean  @default(false)
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
