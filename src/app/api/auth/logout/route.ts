@@ -1,7 +1,1 @@
-import { NextResponse } from 'next/server';
-import { removeSessionCookie } from '@/lib/session';
-
-export async function POST() {
-  await removeSessionCookie();
-  return NextResponse.json({ success: true });
-}
+export { logoutHandler as POST } from '@/features/auth/api/logout';

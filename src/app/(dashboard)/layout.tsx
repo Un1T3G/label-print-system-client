@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-import { usePrintCart } from '@/context/print-cart-context';
+import { useAuth } from '@/features/auth';
+import { usePrintCart } from '@/features/print';
 import {
   PackageSearch,
   Printer,
@@ -13,10 +13,22 @@ import {
   Store,
   ShieldAlert,
   UserCheck,
+  ChevronDown,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import {
+  Button,
+  Badge,
+  ThemeToggle,
+  Avatar,
+  AvatarFallback,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/shared/ui';
+import { cn } from '@/shared/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -27,52 +39,66 @@ export default function DashboardLayout({
   const { user, logout, isAdmin, isLoading } = useAuth();
   const { totalLabelsCount } = usePrintCart();
 
-  const navItems = [
+  const allNavItems = [
     {
       label: 'Каталог товаров',
       href: '/products',
       icon: PackageSearch,
       badge: null,
+      adminOnly: false,
     },
     {
       label: 'Очередь печати',
       href: '/print',
       icon: Printer,
       badge: totalLabelsCount > 0 ? totalLabelsCount : null,
+      adminOnly: false,
     },
     {
       label: 'Шаблоны печати',
       href: '/admin/templates',
       icon: Sliders,
       badge: 'Admin',
+      adminOnly: true,
     },
   ];
 
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <div className="min-h-screen flex flex-col bg-muted/20 text-foreground transition-colors duration-200">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo & Store */}
-            <div className="flex items-center gap-3">
-              <Link href="/products" className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-                  <Store className="w-5 h-5" />
+            <div className="flex items-center gap-2.5">
+              <Link href="/products" className="flex items-center gap-2.5 group">
+                <div className="size-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-xs group-hover:opacity-90 transition-opacity">
+                  <Store className="size-4.5" />
                 </div>
                 <div>
-                  <span className="font-bold text-base text-slate-900 leading-none block">
+                  <span className="font-semibold text-sm leading-tight text-foreground block">
                     Помощник консультанта
                   </span>
-                  <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5 mt-0.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Umag Магазин: #41796
+                  <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1.5 mt-0.5">
+                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Umag: #41796
                   </span>
                 </div>
               </Link>
             </div>
 
-            {/* Main Navigation Tabs */}
+            {/* Main Navigation Tabs — desktop only */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/products' && pathname.startsWith(item.href));
@@ -83,65 +109,86 @@ export default function DashboardLayout({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors relative',
+                      'flex items-center gap-2 px-3.5 py-2 rounded-md text-sm font-medium transition-colors relative',
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                     )}
                   >
-                    <Icon className={cn('w-4 h-4', isActive ? 'text-blue-600' : 'text-slate-400')} />
+                    <Icon className={cn('size-4', isActive ? 'text-foreground' : 'text-muted-foreground')} />
                     <span>{item.label}</span>
 
                     {item.badge !== null && typeof item.badge === 'number' && (
-                      <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-blue-600 rounded-full animate-scale">
+                      <Badge variant="default" className="size-5 p-0 justify-center text-[11px] rounded-full">
                         {item.badge}
-                      </span>
+                      </Badge>
                     )}
 
                     {item.badge === 'Admin' && (
-                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 uppercase font-semibold">
                         Админ
-                      </span>
+                      </Badge>
                     )}
                   </Link>
                 );
               })}
             </nav>
 
-            {/* User Profile & Actions */}
-            <div className="flex items-center gap-3">
-              {!isLoading && user ? (
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-xs font-bold text-slate-900">
-                      {user.name}
-                    </span>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {isAdmin ? (
-                        <Badge variant="default" className="text-[10px] h-4 bg-purple-600 hover:bg-purple-600">
-                          <ShieldAlert className="w-2.5 h-2.5 mr-0.5" />
-                          Админ
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px] h-4 bg-emerald-50 text-emerald-700 border-emerald-200">
-                          <UserCheck className="w-2.5 h-2.5 mr-0.5" />
-                          Консультант
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+            {/* User Profile, Theme Toggle & Actions */}
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle />
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    className="text-slate-500 hover:text-red-600 hover:bg-red-50 text-xs gap-1.5"
-                    title="Выйти из системы"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden sm:inline">Выход</span>
-                  </Button>
-                </div>
+              {!isLoading && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-9 px-2 gap-2 text-foreground">
+                      <Avatar size="sm">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="hidden sm:flex flex-col items-start text-left">
+                        <span className="text-xs font-medium leading-none max-w-[120px] truncate">
+                          {user.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5">
+                          {isAdmin ? 'Администратор' : 'Консультант'}
+                        </span>
+                      </div>
+                      <ChevronDown className="size-3.5 text-muted-foreground hidden sm:inline-block" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium leading-none truncate">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.login}</p>
+                        <div className="pt-1">
+                          {isAdmin ? (
+                            <Badge variant="secondary" className="gap-1 text-[10px]">
+                              <ShieldAlert className="size-3 text-primary" />
+                              Администратор
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 text-[10px]">
+                              <UserCheck className="size-3 text-muted-foreground" />
+                              Консультант
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={logout}
+                      className="cursor-pointer"
+                    >
+                      <LogOut data-icon="inline-start" />
+                      Выйти из системы
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Link href="/login">
                   <Button size="sm" variant="outline">
@@ -151,42 +198,52 @@ export default function DashboardLayout({
               )}
             </div>
           </div>
-
-          {/* Mobile Navigation bar */}
-          <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-100">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/products' && pathname.startsWith(item.href));
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex flex-col items-center py-1 px-3 text-xs font-medium rounded-lg transition-colors',
-                    isActive ? 'text-blue-600' : 'text-slate-500'
-                  )}
-                >
-                  <div className="relative">
-                    <Icon className="w-5 h-5" />
-                    {item.badge !== null && typeof item.badge === 'number' && (
-                      <span className="absolute -top-1.5 -right-2.5 px-1 py-0.2 text-[9px] font-bold text-white bg-blue-600 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="mt-1 text-[11px]">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
         </div>
       </header>
 
-      {/* Main Page Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Main Page Body — pb-24 on mobile to clear the fixed bottom nav */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-24 md:pb-5">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation Tab Bar — fixed, only on small screens */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border">
+        <div className="flex items-stretch justify-around safe-area-inset-bottom">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/products' && pathname.startsWith(item.href));
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 min-h-[56px] text-xs font-medium transition-colors active:bg-muted/60',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                <div className="relative">
+                  <Icon
+                    className={cn(
+                      'size-6 transition-transform',
+                      isActive && 'scale-110'
+                    )}
+                  />
+                  {item.badge !== null && typeof item.badge === 'number' && (
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center px-1 text-[9px] font-bold text-primary-foreground bg-primary rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                  {item.badge === 'Admin' && (
+                    <span className="absolute -top-1 -right-2 size-2 bg-amber-500 rounded-full" />
+                  )}
+                </div>
+                <span className="text-[10px] leading-tight">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

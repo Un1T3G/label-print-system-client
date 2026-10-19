@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { DEFAULT_TEMPLATES } from '../src/lib/templates-data';
-import { PRESET_USERS } from '../src/lib/session';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { DEFAULT_TEMPLATES } from '../src/features/templates';
+import { PRESET_USERS } from '../src/shared/auth';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +34,7 @@ async function main() {
         widthMm: tpl.widthMm,
         heightMm: tpl.heightMm,
         isDefault: tpl.isDefault,
-        config: tpl.config as any,
+        config: tpl.config as unknown as Prisma.InputJsonValue,
       },
     });
     console.log(`✓ Шаблон: ${tpl.name} (${tpl.widthMm}x${tpl.heightMm} мм)`);

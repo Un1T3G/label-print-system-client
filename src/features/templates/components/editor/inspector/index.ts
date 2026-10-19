@@ -1,0 +1,10 @@
+export { InspectorHeader } from './InspectorHeader';
+export { InspectorGeneralControls } from './InspectorGeneralControls';
+export { InspectorPrefixSuffixControls } from './InspectorPrefixSuffixControls';
+export { InspectorTypographyControls } from './InspectorTypographyControls';
+export { InspectorStyleModifiers } from './InspectorStyleModifiers';
+export { InspectorBarcodeControls } from './InspectorBarcodeControls';
+export { InspectorQrControls } from './InspectorQrControls';
+export { InspectorPriceControls } from './InspectorPriceControls';
+export { InspectorDividerControls } from './InspectorDividerControls';
+export { InspectorOffsetControls } from './InspectorOffsetControls';

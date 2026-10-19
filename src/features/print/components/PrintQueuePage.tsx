@@ -1,0 +1,123 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { usePrintQueue } from '../hooks/use-print-queue';
+import { Button } from '@/shared/ui';
+import { TsplPreviewModal } from './TsplPreviewModal';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import {
+  PrintQueueEmptyState,
+  PrintQueueItemList,
+  PrintPreviewCard,
+  PrintActionsCard,
+} from './queue';
+
+export function PrintQueuePage() {
+  const {
+    items,
+    totalLabelsCount,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    templates,
+    isLoadingTemplates,
+    setSelectedTemplateId,
+    previewItemIndex,
+    setPreviewItemIndex,
+    activeTemplate,
+    previewItem,
+    isPrinting,
+    isGeneratingPdf,
+    isSendingPdf,
+    isTsplModalOpen,
+    setIsTsplModalOpen,
+    handlePrint,
+    handleBrowserPrint,
+    handleDownloadPdf,
+    handleOpenPdf,
+    handleSendPdfToService,
+  } = usePrintQueue();
+
+  return (
+    <div className="flex flex-col gap-4 sm:gap-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/products"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1.5 -ml-1.5 rounded-md active:bg-muted/60"
+          >
+            <ArrowLeft className="size-5" />
+          </Link>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Очередь печати
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block mt-0.5">
+              Настройте шаблон, проверьте количество и отправьте ценники на принтер
+            </p>
+          </div>
+        </div>
+
+        {items.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearCart}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+          >
+            <Trash2 data-icon="inline-start" />
+            <span className="hidden sm:inline">Очистить всю</span>
+          </Button>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <PrintQueueEmptyState />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Items List */}
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            <PrintQueueItemList
+              items={items}
+              totalLabelsCount={totalLabelsCount}
+              currencySymbol={activeTemplate?.config?.currencySymbol}
+              previewItemIndex={previewItemIndex}
+              onSelectPreviewItem={setPreviewItemIndex}
+              onUpdateQuantity={updateQuantity}
+              onRemoveItem={removeItem}
+            />
+          </div>
+
+          {/* Right Column: Template selection, Preview & Actions */}
+          <div className="lg:col-span-5 flex flex-col gap-5">
+            <PrintPreviewCard
+              templates={templates}
+              isLoadingTemplates={isLoadingTemplates}
+              activeTemplate={activeTemplate}
+              previewItem={previewItem}
+              onSelectTemplateId={setSelectedTemplateId}
+              onOpenTsplModal={() => setIsTsplModalOpen(true)}
+            />
+
+            <PrintActionsCard
+              totalLabelsCount={totalLabelsCount}
+              itemsCount={items.length}
+              activeTemplate={activeTemplate}
+              isSendingPdf={isSendingPdf}
+              onSendPdfToService={handleSendPdfToService}
+              onBrowserPrint={handleBrowserPrint}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* TSPL Live Preview Modal */}
+      <TsplPreviewModal
+        isOpen={isTsplModalOpen}
+        onClose={() => setIsTsplModalOpen(false)}
+      />
+    </div>
+  );
+}
