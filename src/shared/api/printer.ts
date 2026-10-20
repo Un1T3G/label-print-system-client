@@ -1,18 +1,20 @@
 import type { PrintJobPayload } from './types';
+import { getPrinterBaseUrl, DEFAULT_PRINTER_URL } from '@/features/print/model/printer-settings-store';
 
-export const LOCAL_PRINTER_BASE =
-  process.env.NEXT_PUBLIC_LOCAL_PRINTER_URL?.replace(/\/print$/, '') || 'http://localhost:9100';
+export { getPrinterBaseUrl, DEFAULT_PRINTER_URL };
+export const LOCAL_PRINTER_BASE = DEFAULT_PRINTER_URL;
 
 export async function sendToLocalPrinter(payload: PrintJobPayload) {
+  const baseUrl = getPrinterBaseUrl();
   try {
-    const res = await fetch(`${LOCAL_PRINTER_BASE}/print`, {
+    const res = await fetch(`${baseUrl}/print`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
-      throw new Error(`Ошибка локального сервиса печати: статус ${res.status}`);
+      throw new Error(`Ошибка локального сервиса печати (${baseUrl}): статус ${res.status}`);
     }
     return await res.json();
   } catch (err: unknown) {
@@ -20,7 +22,7 @@ export async function sendToLocalPrinter(payload: PrintJobPayload) {
       throw err;
     }
     throw new Error(
-      'Не удалось связаться с печатным сервисом (http://localhost:9100/print). Проверьте, запущена ли программа печати на компьютере.'
+      `Не удалось связаться с печатным сервисом (${baseUrl}/print). Проверьте настройки IP-адреса и запущена ли программа печати на компьютере.`
     );
   }
 }
@@ -30,35 +32,50 @@ export async function sendPdfToLocalPrinter(payload: {
   printer?: string;
   filename?: string;
 }) {
+  const baseUrl = getPrinterBaseUrl();
   try {
-    const res = await fetch(`${LOCAL_PRINTER_BASE}/print-pdf`, {
+    const res = await fetch(`${baseUrl}/print-pdf`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `Ошибка сервиса печати: статус ${res.status}`);
+    if (res.ok) {
+      return await res.json();
     }
-    return await res.json();
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('сервиса печати')) {
-      throw err;
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Ошибка сервиса печати: статус ${res.status}`);
+  } catch (directErr: unknown) {
+    try {
+      const proxyRes = await fetch('/api/printer/print-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (proxyRes.ok) {
+        return await proxyRes.json();
+      }
+    } catch {
+      // ignore proxy error
+    }
+
+    if (directErr instanceof Error && directErr.message.includes('сервиса печати')) {
+      throw directErr;
     }
     throw new Error(
-      'Не удалось отправить PDF в сервис печати (http://localhost:9100/print-pdf). Проверьте, что сервис запущен.'
+      `Не удалось отправить PDF в сервис печати (${baseUrl}/print-pdf). Проверьте настройки IP-адреса и запущен ли сервис.`
     );
   }
 }
 
 export async function fetchTsplPreview(): Promise<string> {
-  const res = await fetch(`${LOCAL_PRINTER_BASE}/preview-tspl`);
+  const baseUrl = getPrinterBaseUrl();
+  const res = await fetch(`${baseUrl}/preview-tspl`);
   if (!res.ok) {
     if (res.status === 404) {
       throw new Error('Печатных заданий пока не было в сервисе печати.');
     }
-    throw new Error(`Ошибка получения TSPL: статус ${res.status}`);
+    throw new Error(`Ошибка получения TSPL (${baseUrl}): статус ${res.status}`);
   }
   return await res.text();
 }
@@ -69,9 +86,10 @@ export async function fetchPrinterStatus(): Promise<{
   activePrinter: string;
   hasLastJob: boolean;
 }> {
-  const res = await fetch(`${LOCAL_PRINTER_BASE}/status`);
+  const baseUrl = getPrinterBaseUrl();
+  const res = await fetch(`${baseUrl}/status`);
   if (!res.ok) {
-    throw new Error(`Ошибка статуса: ${res.status}`);
+    throw new Error(`Ошибка статуса (${baseUrl}): ${res.status}`);
   }
   return await res.json();
 }

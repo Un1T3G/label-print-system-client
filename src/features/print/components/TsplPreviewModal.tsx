@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchTsplPreview, fetchPrinterStatus, LOCAL_PRINTER_BASE } from '../api/printer';
+import { fetchTsplPreview, fetchPrinterStatus, getPrinterBaseUrl } from '../api/printer';
+import { usePrinterSettingsStore } from '../model/printer-settings-store';
 import type { PrinterStatus } from '../types';
 import {
   Button,
@@ -30,6 +31,7 @@ export function TsplPreviewModal({ isOpen, onClose }: TsplPreviewModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [serviceStatus, setServiceStatus] = useState<PrinterStatus | null>(null);
+  const serverUrl = usePrinterSettingsStore((s) => s.serverUrl) || getPrinterBaseUrl();
 
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
@@ -139,7 +141,7 @@ export function TsplPreviewModal({ isOpen, onClose }: TsplPreviewModalProps) {
               </div>
               <div>
                 <span className="text-muted-foreground">Эндпоинт:</span>
-                <p className="font-mono text-foreground truncate">{LOCAL_PRINTER_BASE}</p>
+                <p className="font-mono text-foreground truncate">{serverUrl}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Статус сервиса:</span>
@@ -173,7 +175,7 @@ export function TsplPreviewModal({ isOpen, onClose }: TsplPreviewModalProps) {
         <DialogFooter className="px-6 py-3 border-t border-border bg-muted/30 flex items-center justify-between sm:justify-between">
           <div className="flex items-center gap-2">
             <a
-              href={`${LOCAL_PRINTER_BASE}/status`}
+              href={`${serverUrl}/status`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"

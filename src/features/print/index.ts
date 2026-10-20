@@ -1,6 +1,13 @@
 export { PrintQueuePage } from './components/PrintQueuePage';
 export { TsplPreviewModal } from './components/TsplPreviewModal';
+export { PrinterSettingsModal } from './components/PrinterSettingsModal';
 export { usePrintCart, usePrintCartStore } from './model/print-cart-store';
+export {
+  usePrinterSettingsStore,
+  getPrinterBaseUrl,
+  normalizePrinterUrl,
+  DEFAULT_PRINTER_URL,
+} from './model/printer-settings-store';
 export {
   generateLabelsPdf,
   downloadLabelsPdf,

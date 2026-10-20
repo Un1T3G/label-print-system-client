@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePrintQueue } from '../hooks/use-print-queue';
 import { Button } from '@/shared/ui';
 import { TsplPreviewModal } from './TsplPreviewModal';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { PrinterSettingsModal } from './PrinterSettingsModal';
+import { ArrowLeft, Trash2, Settings2 } from 'lucide-react';
 import {
   PrintQueueEmptyState,
   PrintQueueItemList,
@@ -27,17 +28,14 @@ export function PrintQueuePage() {
     setPreviewItemIndex,
     activeTemplate,
     previewItem,
-    isPrinting,
-    isGeneratingPdf,
     isSendingPdf,
     isTsplModalOpen,
     setIsTsplModalOpen,
-    handlePrint,
     handleBrowserPrint,
-    handleDownloadPdf,
-    handleOpenPdf,
     handleSendPdfToService,
   } = usePrintQueue();
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
@@ -60,17 +58,31 @@ export function PrintQueuePage() {
           </div>
         </div>
 
-        {items.length > 0 && (
+        <div className="flex items-center gap-2 shrink-0">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={clearCart}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="gap-1.5 h-8 text-xs font-medium"
+            title="Настройка IP-адреса сервиса печати"
           >
-            <Trash2 data-icon="inline-start" />
-            <span className="hidden sm:inline">Очистить всю</span>
+            <Settings2 className="size-3.5" />
+            <span className="hidden sm:inline">Сервер печати (IP)</span>
+            <span className="sm:hidden">IP принтера</span>
           </Button>
-        )}
+
+          {items.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearCart}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 h-8"
+            >
+              <Trash2 data-icon="inline-start" />
+              <span className="hidden sm:inline">Очистить всю</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -108,6 +120,7 @@ export function PrintQueuePage() {
               isSendingPdf={isSendingPdf}
               onSendPdfToService={handleSendPdfToService}
               onBrowserPrint={handleBrowserPrint}
+              onOpenSettings={() => setIsSettingsModalOpen(true)}
             />
           </div>
         </div>
@@ -117,6 +130,12 @@ export function PrintQueuePage() {
       <TsplPreviewModal
         isOpen={isTsplModalOpen}
         onClose={() => setIsTsplModalOpen(false)}
+      />
+
+      {/* Printer Server IP Settings Modal */}
+      <PrinterSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );

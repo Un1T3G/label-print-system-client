@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth';
-import { usePrintCart } from '@/features/print';
+import { usePrintCart, PrinterSettingsModal } from '@/features/print';
 import {
   PackageSearch,
   Printer,
@@ -38,6 +38,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout, isAdmin, isLoading } = useAuth();
   const { totalLabelsCount } = usePrintCart();
+  const [isPrinterSettingsOpen, setIsPrinterSettingsOpen] = React.useState(false);
 
   const allNavItems = [
     {
@@ -136,6 +137,15 @@ export default function DashboardLayout({
 
             {/* User Profile, Theme Toggle & Actions */}
             <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setIsPrinterSettingsOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Настройки сервера печати (IP-адрес)"
+              >
+                <Printer className="size-4" />
+              </Button>
               <ThemeToggle />
 
               {!isLoading && user ? (
@@ -178,6 +188,14 @@ export default function DashboardLayout({
                         </div>
                       </div>
                     </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setIsPrinterSettingsOpen(true)}
+                      className="cursor-pointer"
+                    >
+                      <Printer data-icon="inline-start" />
+                      Сервер печати (IP)
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
@@ -244,6 +262,12 @@ export default function DashboardLayout({
           })}
         </div>
       </nav>
+
+      {/* Printer Server IP Settings Modal */}
+      <PrinterSettingsModal
+        isOpen={isPrinterSettingsOpen}
+        onClose={() => setIsPrinterSettingsOpen(false)}
+      />
     </div>
   );
 }

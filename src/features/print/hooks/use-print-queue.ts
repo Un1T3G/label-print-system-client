@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { usePrintCart } from '../model/print-cart-store';
 import { useTemplates, type PrintTemplate } from '@/features/templates';
 import { sendToLocalPrinter, sendPdfToLocalPrinter } from '../api/printer';
-import { generateLabelsPdf, downloadLabelsPdf, openLabelsPdfInNewTab } from '../lib/pdf-generator';
+import {
+  generateLabelsPdf,
+  downloadLabelsPdf,
+  openLabelsPdfInNewTab,
+  printViaBrowser,
+} from '../lib/pdf-generator';
 import { toast } from 'sonner';
 
 export function usePrintQueue() {
@@ -60,18 +65,18 @@ export function usePrintQueue() {
       const msg =
         err instanceof Error
           ? err.message
-          : 'Сбой соединения с локальным сервисом печати (http://localhost:9100/print)';
+          : 'Сбой соединения с сервисом печати';
       toast.error(msg, {
         duration: 7000,
         description:
-          'Убедитесь, что сервис печати запущен на локальном компьютере и порт 9100 открыт.',
+          'Проверьте IP-адрес сервиса печати в настройках и убедитесь, что компьютер и телефон в одной сети Wi-Fi.',
       });
     } finally {
       setIsPrinting(false);
     }
   };
 
-  const handleBrowserPrint = async () => {
+  const handleBrowserPrint = () => {
     if (items.length === 0) {
       toast.warning('Очередь печати пуста.');
       return;
@@ -81,19 +86,12 @@ export function usePrintQueue() {
       return;
     }
 
-    setIsGeneratingPdf(true);
     try {
-      toast.info('Подготовка документа к печати...');
-      const doc = await generateLabelsPdf({ template: activeTemplate, items });
-      doc.autoPrint();
-      const pdfBlobUrl = doc.output('bloburl');
-      window.open(pdfBlobUrl, '_blank');
-      toast.success('Открыто системное окно печати Windows / браузера');
+      printViaBrowser(activeTemplate, items);
+      toast.success('Открыт системный диалог печати Windows');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка формирования печати';
       toast.error(msg);
-    } finally {
-      setIsGeneratingPdf(false);
     }
   };
 
@@ -148,11 +146,14 @@ export function usePrintQueue() {
       });
 
       toast.success(
-        result.message || 'PDF файл успешно отправлен на печать в сервис (порт 9100)!'
+        result.message || 'PDF файл успешно отправлен на печать!'
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка отправки PDF в сервис печати';
-      toast.error(msg);
+      toast.error(msg, {
+        duration: 7000,
+        description: 'Проверьте настройки IP-адреса принтера и работу сервиса печати на компьютере.',
+      });
     } finally {
       setIsSendingPdf(false);
     }
