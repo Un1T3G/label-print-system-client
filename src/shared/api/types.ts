@@ -30,6 +30,10 @@ export interface PrintJobItem {
   price: number;
   measureName: string;
   quantity: number;
+  /** PLU-код весового товара */
+  plu?: string;
+  /** true если товар весовой (type === 1) */
+  isWeight?: boolean;
 }
 
 export interface PrintJobPayload {

@@ -63,7 +63,7 @@ export function PrintQueuePage() {
             variant="outline"
             size="sm"
             onClick={() => setIsSettingsModalOpen(true)}
-            className="gap-1.5 h-8 text-xs font-medium"
+            className="gap-1.5 font-medium"
             title="Настройка IP-адреса сервиса печати"
           >
             <Settings2 className="size-3.5" />
@@ -76,7 +76,7 @@ export function PrintQueuePage() {
               variant="ghost"
               size="sm"
               onClick={clearCart}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 h-8"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
             >
               <Trash2 data-icon="inline-start" />
               <span className="hidden sm:inline">Очистить всю</span>

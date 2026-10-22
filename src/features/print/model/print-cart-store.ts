@@ -43,6 +43,8 @@ export const usePrintCartStore = create<PrintCartState>()(
                 price: product.wholesalePrice,
                 measureName: product.measureName || (product.type === 1 ? 'кг.' : 'шт.'),
                 quantity,
+                plu: product.aliasList?.[0],
+                isWeight: product.type === 1,
               },
             ],
           });

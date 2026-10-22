@@ -20,3 +20,4 @@ export * from './skeleton';
 export * from './tooltip';
 export * from './avatar';
 export * from './dropdown-menu';
+export * from './popover';

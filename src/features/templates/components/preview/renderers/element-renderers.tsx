@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import JsBarcode from 'jsbarcode';
 import type { ElementRenderProps } from '../../../model/element-registry-types';
 import { cn } from '@/shared/lib/utils';
 import { QrCodeSvg } from '../QrCodeSvg';
@@ -123,30 +124,70 @@ export function DiscountBadgePreview({ element: el }: ElementRenderProps) {
 }
 
 export function BarcodePreview({ element: el, activeProduct }: ElementRenderProps) {
-  return (
-    <div className="w-full flex flex-col items-center mt-0.5">
-      <div
-        className="w-full flex items-center justify-center gap-[1.5px] overflow-hidden px-1"
-        style={{
-          height: `${Math.min(36, Math.max(14, (el.barcodeHeight || 45) / 2.4))}px`,
-        }}
-      >
-        {[...Array(34)].map((_, i) => (
-          <div
-            key={i}
-            className="bg-black h-full"
-            style={{
-              width: i % 5 === 0 ? '2.5px' : i % 2 === 0 ? '1.5px' : '1px',
-            }}
-          />
-        ))}
-      </div>
+  const svgRef = React.useRef<SVGSVGElement>(null);
+  const barcode = String(activeProduct.barcode || '4780111550194').trim();
+  const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
 
-      {el.showBarcodeDigits !== false && (
-        <span className="font-mono text-[8.5px] font-bold tracking-widest text-slate-900 leading-none mt-0.5">
-          {activeProduct.barcode}
+  const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
+  const plu = activeProduct.plu;
+
+  React.useEffect(() => {
+    if (!svgRef.current) return;
+    if (isWeight && plu) return; // для весовых — штрихкод не нужен
+    try {
+      const format = /^\d{13}$/.test(barcode) ? 'EAN13' : 'CODE128';
+      try {
+        JsBarcode(svgRef.current, barcode, {
+          format,
+          width: 1.5,
+          height: rawH,
+          displayValue: el.showBarcodeDigits !== false,
+          fontSize: 10,
+          font: 'monospace',
+          margin: 0,
+          background: 'transparent',
+          lineColor: '#000000',
+        });
+      } catch {
+        JsBarcode(svgRef.current, barcode, {
+          format: 'CODE128',
+          width: 1.5,
+          height: rawH,
+          displayValue: el.showBarcodeDigits !== false,
+          fontSize: 10,
+          font: 'monospace',
+          margin: 0,
+          background: 'transparent',
+          lineColor: '#000000',
+        });
+      }
+    } catch (err) {
+      console.warn('Barcode preview error:', err);
+    }
+  }, [barcode, rawH, el.showBarcodeDigits, isWeight, plu]);
+
+  // Весовой товар — показываем большой PLU вместо штрихкода
+  if (isWeight && plu) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center my-0.5 py-1">
+        <span className="text-[7px] font-mono text-slate-400 uppercase tracking-widest leading-none mb-0.5">
+          PLU код
         </span>
-      )}
+        <div className="border-2 border-black rounded px-3 py-0.5 flex items-center justify-center">
+          <span
+            className="font-black font-mono text-black tracking-[0.2em] leading-none"
+            style={{ fontSize: `${(el.barcodeHeight || 45) / 3.2}pt` }}
+          >
+            {plu}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col items-center justify-center my-0.5 overflow-hidden">
+      <svg ref={svgRef} className="max-w-full" />
     </div>
   );
 }
@@ -167,6 +208,9 @@ export function QrCodePreview({ element: el }: ElementRenderProps) {
 }
 
 export function ProductCodePreview({ element: el, activeProduct }: ElementRenderProps) {
+  const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
+  const showPlu = isWeight && activeProduct.plu;
+
   return (
     <div
       className={cn(
@@ -178,9 +222,18 @@ export function ProductCodePreview({ element: el, activeProduct }: ElementRender
         fontWeight: el.fontWeight === 'bold' ? 700 : 500,
       }}
     >
-      {el.prefix || 'Арт: '}
-      <strong className="text-black">{activeProduct.code || el.content || '10452'}</strong>
-      {el.suffix || ''}
+      {showPlu ? (
+        <>
+          <span className="text-slate-500">PLU: </span>
+          <strong className="text-black">{activeProduct.plu}</strong>
+        </>
+      ) : (
+        <>
+          {el.prefix || 'Арт: '}
+          <strong className="text-black">{activeProduct.code || el.content || '10452'}</strong>
+          {el.suffix || ''}
+        </>
+      )}
     </div>
   );
 }

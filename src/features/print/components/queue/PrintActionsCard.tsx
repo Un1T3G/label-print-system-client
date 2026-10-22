@@ -72,7 +72,8 @@ export function PrintActionsCard({
         <Button
           onClick={onSendPdfToService}
           disabled={isSendingPdf || isActionDisabled}
-          className="w-full h-14 sm:h-11 text-base sm:text-sm font-semibold shadow-xs"
+          size="lg"
+          className="w-full font-semibold shadow-xs"
         >
           {isSendingPdf ? (
             <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -89,9 +90,10 @@ export function PrintActionsCard({
         <Button
           type="button"
           variant="secondary"
+          size="default"
           onClick={onBrowserPrint}
           disabled={isActionDisabled}
-          className="w-full h-11 sm:h-10 text-sm sm:text-xs font-medium"
+          className="w-full font-medium"
         >
           <Printer data-icon="inline-start" />
           <span className="sm:hidden">Печать через браузер</span>

@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import JsBarcode from 'jsbarcode';
 import type { PrintTemplate } from '@/features/templates';
 import { getTemplateElements } from '@/features/templates';
 import type { PrintJobItem } from '../types';
@@ -121,25 +122,57 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         }
 
         case 'barcode': {
-          const rawH = Math.min(36, Math.max(14, (el.barcodeHeight || 45) / 2.4));
-          const barsHtml = [...Array(34)]
-            .map((_, i) => {
-              const width = i % 5 === 0 ? '2.5px' : i % 2 === 0 ? '1.5px' : '1px';
-              return `<div style="background: #000000; height: 100%; width: ${width}; flex-shrink: 0;"></div>`;
-            })
-            .join('');
+          // Весовой товар — показываем крупный PLU вместо штрихкода
+          if (item.isWeight && item.plu) {
+            const pluFontSize = Math.round((el.barcodeHeight || 45) / 3.2);
+            return `
+              <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 2px 0; padding: 2px 0; ${transformStyle}">
+                <span style="font-size: 7px; font-family: monospace; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px; line-height: 1;">PLU КОД</span>
+                <div style="border: 2px solid #000000; border-radius: 4px; padding: 2px 10px; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: ${pluFontSize}pt; font-family: monospace; font-weight: 900; color: #000000; letter-spacing: 0.2em; line-height: 1;">${escapeHtml(item.plu)}</span>
+                </div>
+              </div>
+            `;
+          }
 
-          const digitsHtml =
-            el.showBarcodeDigits !== false
-              ? `<span style="font-family: monospace; font-size: 8.5px; font-weight: 700; letter-spacing: 0.15em; color: #0f172a; line-height: 1; margin-top: 2px;">${escapeHtml(item.barcode)}</span>`
-              : '';
-
+          const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+          let svgMarkup = '';
+          const clean = String(item.barcode || '4780111550194').trim();
+          if (typeof document !== 'undefined') {
+            try {
+              const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+              const format = /^\d{12,13}$/.test(clean) ? 'EAN13' : 'CODE128';
+              try {
+                JsBarcode(svg, clean, {
+                  format,
+                  width: 2,
+                  height: rawH,
+                  displayValue: el.showBarcodeDigits !== false,
+                  fontSize: 10,
+                  font: 'monospace',
+                  margin: 0,
+                  background: 'transparent',
+                  lineColor: '#000000',
+                });
+              } catch {
+                JsBarcode(svg, clean, {
+                  format: 'CODE128',
+                  width: 2,
+                  height: rawH,
+                  displayValue: el.showBarcodeDigits !== false,
+                  fontSize: 10,
+                  font: 'monospace',
+                  margin: 0,
+                  background: 'transparent',
+                  lineColor: '#000000',
+                });
+              }
+              svgMarkup = svg.outerHTML;
+            } catch {}
+          }
           return `
             <div style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 2px; ${transformStyle}">
-              <div style="display: flex; align-items: center; justify-content: center; gap: 1.5px; height: ${rawH}px; width: 100%; overflow: hidden; padding: 0 4px;">
-                ${barsHtml}
-              </div>
-              ${digitsHtml}
+              ${svgMarkup}
             </div>
           `;
         }
@@ -161,6 +194,17 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         case 'productCode': {
           const fontSize = el.fontSize || 8.5;
           const align = el.textAlign || 'left';
+          const isWeight = item.isWeight;
+          const showPlu = isWeight && item.plu;
+
+          if (showPlu) {
+            return `
+              <div style="width: 100%; font-size: ${fontSize}pt; font-weight: 700; text-align: ${align}; color: #000000; ${transformStyle}">
+                <span style="color: #64748b; font-weight: 500;">PLU: </span>${escapeHtml(item.plu!)}
+              </div>
+            `;
+          }
+
           const code = el.content || item.barcode.slice(-5);
           return `
             <div style="width: 100%; font-size: ${fontSize}pt; font-weight: 700; text-align: ${align}; color: #000000; ${transformStyle}">
@@ -176,6 +220,22 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
           return `
             <div style="width: 100%; font-size: ${fontSize}pt; text-align: ${align}; color: #475569; ${transformStyle}">
               ${escapeHtml(el.prefix || 'Страна: ')}${escapeHtml(text)}${escapeHtml(el.suffix || '')}
+            </div>
+          `;
+        }
+
+        case 'qrcode': {
+          const qrSize = el.qrSize || 36;
+          const align = el.textAlign || 'center';
+          const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+          return `
+            <div style="width: 100%; display: flex; justify-content: ${justify}; margin: 2px 0; ${transformStyle}">
+              <div style="padding: 2px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; display: inline-block;">
+                <svg width="${qrSize}" height="${qrSize}" viewBox="0 0 21 21" shape-rendering="crispEdges">
+                  <rect width="21" height="21" fill="#ffffff" />
+                  <path fill="#000000" d="M0 0h7v7H0zM1 1h5v5H1zM2 2h3v3H2zM14 0h7v7h-7zM15 1h5v5h-5zM16 2h3v3h-3zM0 14h7v7H0zM1 15h5v5H1zM2 16h3v3H2zM8 2h1v1H8zM10 2h1v1h-1zM12 2h1v1h-1zM8 4h1v1H8zM12 4h1v1h-1zM8 8h1v1H8zM9 9h1v1H9zM10 10h1v1h-1zM11 11h1v1h-1zM12 8h1v1h-1zM8 12h1v1H8zM10 12h1v1h-1zM12 12h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM14 12h1v1h-1zM16 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM8 14h1v1H8zM10 14h1v1h-1zM12 14h1v1h-1zM8 16h1v1H8zM10 16h1v1h-1zM12 16h1v1h-1zM8 18h1v1H8zM10 18h1v1h-1zM12 18h1v1h-1zM8 20h1v1H8zM10 20h1v1h-1zM12 20h1v1h-1zM14 14h7v7h-7z" />
+                </svg>
+              </div>
             </div>
           `;
         }
@@ -204,7 +264,7 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
 }
 
 /**
- * Отрисовка этикетки на Canvas для экспорта в PDF.
+ * Отрисовка этикетки на Canvas для экспорта в PDF и точной печати через браузер.
  * Расчет вертикального расположения эмулирует CSS flexbox justify-between,
  * а размеры элементов и штрихкода совпадают с LabelLivePreview.
  */
@@ -228,6 +288,14 @@ export function drawLabelOnCanvas(
   // 1. Белый фон
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, widthPx, heightPx);
+
+  // Обработка поворота на 180°
+  const isRotated = template.config.direction === 1;
+  if (isRotated) {
+    ctx.save();
+    ctx.translate(widthPx, heightPx);
+    ctx.rotate(Math.PI);
+  }
 
   // 2. Рамка при включении
   if (template.config.showBorder) {
@@ -295,14 +363,21 @@ export function drawLabelOnCanvas(
         break;
       }
       case 'barcode': {
-        const rawH = Math.min(36, Math.max(14, (el.barcodeHeight || 45) / 2.4));
+        const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
         const barcodeH = Math.round(rawH * (scale / 3.78));
-        const digitsH = el.showBarcodeDigits !== false ? Math.round(8.5 * (scale / 3.2)) + 3 : 0;
+        const fontSizePx = Math.round(8.5 * (scale / 2.83));
+        const digitsH = el.showBarcodeDigits !== false ? fontSizePx + 4 : 0;
         measured.push({ el, height: barcodeH + digitsH, fontSizePx: 0 });
         break;
       }
+      case 'qrcode': {
+        const qrSize = Math.round((el.qrSize || 32) * (scale / 3.5));
+        measured.push({ el, height: qrSize + 4, fontSizePx: 0 });
+        break;
+      }
       case 'divider': {
-        measured.push({ el, height: 4, fontSizePx: 0 });
+        const lineThick = Math.max(1, Math.round((el.borderWidth || 1) * (scale * 0.25)));
+        measured.push({ el, height: lineThick + 4, fontSizePx: 0 });
         break;
       }
       default: {
@@ -317,7 +392,7 @@ export function drawLabelOnCanvas(
   const totalElementsHeight = measured.reduce((acc, m) => acc + m.height, 0);
   const availableSpace = contentHeight - totalElementsHeight;
   const numGaps = measured.length > 1 ? measured.length - 1 : 1;
-  const gapBetween = measured.length > 1 ? Math.max(2, Math.min(24, availableSpace / numGaps)) : 2;
+  const gapBetween = measured.length > 1 ? Math.max(2, availableSpace / numGaps) : 2;
 
   let currentY = padTop;
 
@@ -522,29 +597,113 @@ export function drawLabelOnCanvas(
       }
 
       case 'barcode': {
-        const rawH = Math.min(36, Math.max(14, (el.barcodeHeight || 45) / 2.4));
-        const barcodeH = Math.round(rawH * (scale / 3.78));
-        const digits = item.barcode || '4780111550194';
+        // Весовой товар — рисуем крупный PLU вместо штрихкода
+        if (item.isWeight && item.plu) {
+          const pluLabelFontSizePx = Math.round(6 * (scale / 2.83));
+          const pluNumFontSizePx = Math.round((el.barcodeHeight || 45) / 3.2 * (scale / 2.83));
 
-        const barcodeW = Math.round(contentWidth * 0.75);
-        const startX = (widthPx - barcodeW) / 2 + offX;
-
-        drawBarcodeLines(ctx, startX, elementY, barcodeW, barcodeH, digits);
-
-        if (el.showBarcodeDigits !== false) {
-          const fontSz = Math.round(8.5 * (scale / 3.2));
-          ctx.font = `700 ${fontSz}px "Courier New", Courier, monospace`;
-          ctx.fillStyle = '#0f172a';
+          // Подпись «PLU КОД»
+          ctx.font = `500 ${pluLabelFontSizePx}px monospace`;
+          ctx.fillStyle = '#9ca3af';
           ctx.textAlign = 'center';
-          ctx.fillText(digits, widthPx / 2 + offX, elementY + barcodeH + fontSz + 1);
+          ctx.fillText('PLU КОД', widthPx / 2 + offX, elementY + pluLabelFontSizePx);
+
+          // Сам PLU номер крупно
+          ctx.font = `900 ${pluNumFontSizePx}px monospace`;
+          ctx.fillStyle = '#000000';
+          const pluTextY = elementY + pluLabelFontSizePx + pluNumFontSizePx + 4;
+          ctx.fillText(item.plu, widthPx / 2 + offX, pluTextY);
+
+          // Рамка вокруг PLU
+          const pluW = ctx.measureText(item.plu).width + Math.round(16 * (scale / 3.78));
+          const pluH = pluNumFontSizePx + Math.round(6 * (scale / 3.78));
+          const boxX = (widthPx - pluW) / 2 + offX;
+          const boxY = pluTextY - pluNumFontSizePx - Math.round(3 * (scale / 3.78));
+          ctx.lineWidth = Math.max(1, Math.round(1.5 * (scale / 3.78)));
+          ctx.strokeStyle = '#000000';
+          ctx.beginPath();
+          ctx.roundRect(boxX, boxY, pluW, pluH, Math.round(3 * (scale / 3.78)));
+          ctx.stroke();
+
+          currentY += itemM.height + gapBetween;
+          break;
+        }
+
+        const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+        const barcodeH = Math.round(rawH * (scale / 3.78));
+        const cleanDigits = String(item.barcode || '4780111550194').trim();
+
+        // barWidth: модуль штрихкода для термопринтера (203 DPI)
+        // Для EAN-13 ширина ~115 модулей: при ширине 2px получаем 230px (~28.75мм)
+        const barWidth = Math.max(1, Math.min(3, Math.floor(contentWidth / 115)));
+        const fontSizePx = Math.round(8.5 * (scale / 2.83));
+
+        const barcodeCanvas = document.createElement('canvas');
+        let rendered = false;
+
+        // Попытка EAN13 для 12-13 значных штрихкодов
+        if (/^\d{12,13}$/.test(cleanDigits)) {
+          try {
+            JsBarcode(barcodeCanvas, cleanDigits, {
+              format: 'EAN13',
+              width: barWidth,
+              height: barcodeH,
+              displayValue: el.showBarcodeDigits !== false,
+              fontSize: fontSizePx,
+              font: 'monospace',
+              margin: 0,
+              background: '#ffffff',
+              lineColor: '#000000',
+            });
+            rendered = true;
+          } catch {
+            // если EAN13 с ошибкой контрольной суммы, фоллбек на CODE128
+          }
+        }
+
+        // Универсальный фоллбек на CODE128
+        if (!rendered) {
+          try {
+            JsBarcode(barcodeCanvas, cleanDigits, {
+              format: 'CODE128',
+              width: Math.max(1, Math.min(2, Math.floor(contentWidth / 130))),
+              height: barcodeH,
+              displayValue: el.showBarcodeDigits !== false,
+              fontSize: fontSizePx,
+              font: 'monospace',
+              margin: 0,
+              background: '#ffffff',
+              lineColor: '#000000',
+            });
+            rendered = true;
+          } catch (err) {
+            console.error('Barcode error', err);
+          }
+        }
+
+        if (rendered && barcodeCanvas.width > 0) {
+          const drawX = Math.round((widthPx - barcodeCanvas.width) / 2) + offX;
+          ctx.drawImage(barcodeCanvas, drawX, elementY);
         }
 
         currentY += itemM.height + gapBetween;
         break;
       }
 
+      case 'qrcode': {
+        const qrSize = Math.round((el.qrSize || 32) * (scale / 3.5));
+        let qrX = padX + offX;
+        if (el.textAlign === 'center') qrX = (widthPx - qrSize) / 2 + offX;
+        if (el.textAlign === 'right') qrX = widthPx - padX - qrSize + offX;
+
+        drawQrMatrix(ctx, qrX, elementY, qrSize);
+        currentY += itemM.height + gapBetween;
+        break;
+      }
+
       case 'divider': {
-        ctx.lineWidth = 1;
+        const lineThick = Math.max(1, Math.round((el.borderWidth || 1) * (scale * 0.25)));
+        ctx.lineWidth = lineThick;
         ctx.strokeStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath();
         ctx.moveTo(padX, elementY + 2);
@@ -555,7 +714,44 @@ export function drawLabelOnCanvas(
         break;
       }
 
-      case 'productCode':
+      case 'productCode': {
+        const fontWeight = el.fontWeight === 'black' ? 900 : el.fontWeight === 'bold' ? 700 : 500;
+        ctx.font = `${fontWeight} ${fontSizePx}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+
+        let drawX = padX + offX;
+        if (el.textAlign === 'center') {
+          drawX = widthPx / 2 + offX;
+          ctx.textAlign = 'center';
+        } else if (el.textAlign === 'right') {
+          drawX = widthPx - padX + offX;
+          ctx.textAlign = 'right';
+        } else {
+          ctx.textAlign = 'left';
+        }
+
+        const textBaseY = elementY + fontSizePx * 0.85;
+
+        if (item.isWeight && item.plu) {
+          // Для весового товара: PLU-код
+          ctx.fillStyle = '#64748b';
+          ctx.fillText('PLU: ', drawX, textBaseY);
+          const prefixW = ctx.measureText('PLU: ').width;
+          const pluX = ctx.textAlign === 'left' ? drawX + prefixW : drawX;
+          ctx.fillStyle = '#000000';
+          ctx.font = `700 ${fontSizePx}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+          ctx.fillText(item.plu, pluX, textBaseY);
+        } else {
+          // Обычный артикул
+          const code = el.content || item.barcode.slice(-5);
+          const fullText = `${el.prefix || 'Арт: '}${code}${el.suffix || ''}`;
+          ctx.fillStyle = '#000000';
+          ctx.fillText(fullText, drawX, textBaseY);
+        }
+
+        currentY += itemM.height + gapBetween;
+        break;
+      }
+
       case 'country':
       case 'date':
       case 'customText':
@@ -565,7 +761,6 @@ export function drawLabelOnCanvas(
         ctx.fillStyle = el.type === 'country' ? '#475569' : '#000000';
 
         let text = el.content || '';
-        if (el.type === 'productCode') text = item.barcode.slice(-5);
         if (el.type === 'country') text = el.content || 'Узбекистан';
         if (el.type === 'date') text = currentDate;
 
@@ -590,6 +785,10 @@ export function drawLabelOnCanvas(
     }
   }
 
+  if (isRotated) {
+    ctx.restore();
+  }
+
   return canvas;
 }
 
@@ -599,6 +798,7 @@ function wrapText(
   maxWidth: number,
   maxLines: number = 2
 ): string[] {
+  if (!text) return [];
   const words = text.split(' ');
   const lines: string[] = [];
   let currentLine = '';
@@ -625,26 +825,37 @@ function wrapText(
   return lines;
 }
 
-function drawBarcodeLines(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  digits: string
-) {
-  const seed = digits.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const numBars = 34;
-  const barWidth = width / numBars;
+
+function drawQrMatrix(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  const cellSize = size / 21;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x, y, size, size);
 
   ctx.fillStyle = '#000000';
 
-  for (let i = 0; i < numBars; i++) {
-    const isBar = (i * seed + i * 7) % 3 !== 0;
-    if (isBar) {
-      const isThick = i % 5 === 0;
-      const w = isThick ? barWidth * 1.6 : barWidth * 0.9;
-      ctx.fillRect(Math.round(x + i * barWidth), y, Math.ceil(w), height);
+  const drawFinder = (fx: number, fy: number) => {
+    ctx.fillRect(fx, fy, cellSize * 7, cellSize * 7);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(fx + cellSize, fy + cellSize, cellSize * 5, cellSize * 5);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(fx + cellSize * 2, fy + cellSize * 2, cellSize * 3, cellSize * 3);
+  };
+
+  drawFinder(x, y);
+  drawFinder(x + cellSize * 14, y);
+  drawFinder(x, y + cellSize * 14);
+
+  for (let i = 8; i < 13; i += 2) {
+    ctx.fillRect(x + i * cellSize, y + 6 * cellSize, cellSize, cellSize);
+    ctx.fillRect(x + 6 * cellSize, y + i * cellSize, cellSize, cellSize);
+  }
+
+  for (let r = 8; r < 20; r++) {
+    for (let c = 8; c < 20; c++) {
+      if ((r * 7 + c * 13) % 2 === 0) {
+        ctx.fillRect(x + c * cellSize, y + r * cellSize, cellSize, cellSize);
+      }
     }
   }
 }
@@ -697,16 +908,12 @@ export async function openLabelsPdfInNewTab(options: GeneratePdfOptions): Promis
 
 /**
  * Нативная печать ценников через системный диалог Windows / браузера.
- * Использует точную HTML верстку этикеток с CSS Flexbox justify-between,
- * благодаря чему ценники в окне печати 1 в 1 совпадают с превью на экране.
+ * Использует ту же canvas-отрисовку высокой четкости (203 DPI), что и экспорт в PDF,
+ * гарантируя 100% визуальную и размерную идентичность ценников между печатью через сервис и печатью через браузер.
  */
 export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]): void {
   const widthMm = template.widthMm || 58;
   const heightMm = template.heightMm || 40;
-  const isRotated = template.config.direction === 1;
-  const borderStyle = template.config.showBorder
-    ? `border: ${template.config.borderWidth || 1}px solid #000000;`
-    : '';
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
@@ -724,12 +931,13 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
 
   for (const item of items) {
     const copies = item.quantity || 1;
-    const labelContent = renderLabelHtml(template, item);
+    const canvas = drawLabelOnCanvas(template, item, 8);
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
 
     for (let c = 0; c < copies; c++) {
       pagesHtml += `
         <div class="label-page">
-          ${labelContent}
+          <img src="${dataUrl}" alt="Label" />
         </div>
       `;
     }
@@ -756,7 +964,6 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
             margin: 0;
             padding: 0;
             background: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -769,15 +976,16 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
             break-inside: avoid;
             overflow: hidden;
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 8px; /* 8px совпадает с p-2 в LabelLivePreview */
+            align-items: center;
+            justify-content: center;
             background: #ffffff;
-            color: #000000;
-            position: relative;
-            box-sizing: border-box;
-            ${borderStyle}
-            ${isRotated ? 'transform: rotate(180deg);' : ''}
+          }
+          img {
+            width: ${widthMm}mm;
+            height: ${heightMm}mm;
+            display: block;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
           }
         </style>
       </head>

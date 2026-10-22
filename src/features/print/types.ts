@@ -6,6 +6,10 @@ export interface PrintJobItem {
   price: number;
   measureName: string;
   quantity: number;
+  /** PLU-код весового товара (aliasList[0] из Umag) */
+  plu?: string;
+  /** true если товар весовой (type === 1) */
+  isWeight?: boolean;
 }
 
 export interface PrintJobPayload {

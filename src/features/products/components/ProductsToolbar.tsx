@@ -50,7 +50,7 @@ export function ProductsToolbar({
               placeholder="Поиск по названию, штрихкоду или артикулу..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 pr-28 sm:pr-32 h-10 text-sm"
+              className="pl-9 pr-28 sm:pr-32 text-sm"
             />
 
             {/* Trailing Controls (Clear Button & Scanner Toggle Button) */}
@@ -79,7 +79,7 @@ export function ProductsToolbar({
                   size="sm"
                   data-scanner-toggle
                   onClick={handleToggleScanner}
-                  className="h-8 gap-1.5"
+                  className="gap-1.5"
                   title={isScannerOpen ? 'Скрыть сканер' : 'Сканировать штрихкод камерой'}
                 >
                   <ScanBarcode data-icon="inline-start" className="text-primary" />

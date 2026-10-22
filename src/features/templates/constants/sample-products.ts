@@ -5,6 +5,10 @@ export interface SampleProduct {
   measureName: string;
   code?: string;
   country?: string;
+  /** PLU-код для весовых товаров */
+  plu?: string;
+  /** true если товар весовой */
+  isWeight?: boolean;
 }
 
 export const SAMPLE_PRODUCTS: SampleProduct[] = [
@@ -15,6 +19,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     measureName: 'шт.',
     code: '10452',
     country: 'Россия',
+    isWeight: false,
   },
   {
     name: 'Шоколад «Казахстан» темный классический 100г Рахат',
@@ -23,6 +28,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     measureName: 'шт.',
     code: '20891',
     country: 'Казахстан',
+    isWeight: false,
   },
   {
     name: 'Яблоки «Апорт» свежие отборные премиум',
@@ -31,5 +37,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     measureName: 'кг.',
     code: '33104',
     country: 'Узбекистан',
+    plu: '452',
+    isWeight: true,
   },
 ];

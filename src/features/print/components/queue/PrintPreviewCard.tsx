@@ -62,13 +62,13 @@ export function PrintPreviewCard({
         </CardHeader>
         <CardContent className="pt-0 flex flex-col gap-3">
           {isLoadingTemplates ? (
-            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full rounded-lg" />
           ) : (
             <Select
               value={activeTemplate?.id || ''}
               onValueChange={onSelectTemplateId}
             >
-              <SelectTrigger className="w-full h-10 px-3">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Выберите шаблон..." />
               </SelectTrigger>
               <SelectContent>
@@ -148,6 +148,8 @@ export function PrintPreviewCard({
                         price: previewItem.price,
                         barcode: previewItem.barcode,
                         measureName: previewItem.measureName,
+                        plu: previewItem.plu,
+                        isWeight: previewItem.isWeight,
                       }
                     : undefined
                 }
