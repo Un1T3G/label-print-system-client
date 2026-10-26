@@ -1,13 +1,15 @@
 import { jsPDF } from 'jspdf';
 import JsBarcode from 'jsbarcode';
 import type { PrintTemplate } from '@/features/templates';
-import { getTemplateElements } from '@/features/templates';
+import { getTemplateElements, isWeightProduct } from '@/features/templates';
 import type { PrintJobItem } from '../types';
 
 export interface GeneratePdfOptions {
-  template: PrintTemplate;
+  template?: PrintTemplate;
   items: PrintJobItem[];
+  resolveTemplate?: (item: PrintJobItem) => PrintTemplate;
 }
+
 
 function escapeHtml(str: string): string {
   return String(str)
@@ -23,7 +25,8 @@ function escapeHtml(str: string): string {
  * Использует нативный CSS Flexbox justify-between и pt-размеры шрифтов.
  */
 export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): string {
-  const elements = getTemplateElements(template.config);
+  const isWeight = isWeightProduct(item);
+  const elements = getTemplateElements(template.config, isWeight ? 'weight' : 'piece');
   const sorted = [...elements].filter((el) => el.visible).sort((a, b) => a.order - b.order);
 
   const currentDate = new Date().toLocaleDateString('ru-RU', {
@@ -122,30 +125,26 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         }
 
         case 'barcode': {
-          // Весовой товар — показываем крупный PLU вместо штрихкода
-          if (item.isWeight && item.plu) {
-            const pluFontSize = Math.round((el.barcodeHeight || 45) / 3.2);
-            return `
-              <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 2px 0; padding: 2px 0; ${transformStyle}">
-                <span style="font-size: 7px; font-family: monospace; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px; line-height: 1;">PLU КОД</span>
-                <div style="border: 2px solid #000000; border-radius: 4px; padding: 2px 10px; display: inline-flex; align-items: center; justify-content: center;">
-                  <span style="font-size: ${pluFontSize}pt; font-family: monospace; font-weight: 900; color: #000000; letter-spacing: 0.2em; line-height: 1;">${escapeHtml(item.plu)}</span>
-                </div>
-              </div>
-            `;
+          // Если включено скрытие для весовых товаров
+          if (el.barcodeHideOnWeight && item.isWeight) {
+            return '';
           }
 
-          const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+          const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
           let svgMarkup = '';
           const clean = String(item.barcode || '4780111550194').trim();
+          const barW = el.barcodeWidth === 1 ? 1.4 : el.barcodeWidth === 3 ? 2.5 : 2;
+          const align = el.textAlign || 'center';
+          const justify = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+
           if (typeof document !== 'undefined') {
             try {
               const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-              const format = /^\d{12,13}$/.test(clean) ? 'EAN13' : 'CODE128';
+              const format = el.barcodeType === 'EAN13' || /^\d{12,13}$/.test(clean) ? 'EAN13' : 'CODE128';
               try {
                 JsBarcode(svg, clean, {
                   format,
-                  width: 2,
+                  width: barW,
                   height: rawH,
                   displayValue: el.showBarcodeDigits !== false,
                   fontSize: 10,
@@ -157,7 +156,7 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
               } catch {
                 JsBarcode(svg, clean, {
                   format: 'CODE128',
-                  width: 2,
+                  width: barW,
                   height: rawH,
                   displayValue: el.showBarcodeDigits !== false,
                   fontSize: 10,
@@ -171,8 +170,51 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
             } catch {}
           }
           return `
-            <div style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 2px; ${transformStyle}">
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: ${justify}; margin-top: 2px; ${transformStyle}">
               ${svgMarkup}
+            </div>
+          `;
+        }
+
+        case 'pluCode': {
+          if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+            return '';
+          }
+
+          const pluVal = escapeHtml(item.plu || (item.isWeight ? '452' : '452'));
+          const pluStyle = el.pluStyle || 'box';
+          const labelText = escapeHtml(el.pluLabel ?? 'PLU КОД');
+          const labelPos = el.pluLabelPosition || 'top';
+          const fontSize = el.fontSize || 14;
+          const align = el.textAlign || 'center';
+          const justify = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+          const letterSpacing = el.letterSpacing === 'widest' ? '0.25em' : el.letterSpacing === 'normal' ? 'normal' : '0.15em';
+
+          let numHtml = '';
+          if (pluStyle === 'badge') {
+            numHtml = `<div style="background: #000000; color: #ffffff; border-radius: 4px; padding: 2px 8px; display: inline-flex; align-items: center; justify-content: center;"><span style="font-size: ${fontSize}pt; font-family: monospace; font-weight: 900; letter-spacing: ${letterSpacing}; line-height: 1;">${pluVal}</span></div>`;
+          } else if (pluStyle === 'underline') {
+            numHtml = `<div style="border-bottom: 2px solid #000000; padding: 1px 4px; display: inline-flex; align-items: center; justify-content: center;"><span style="font-size: ${fontSize}pt; font-family: monospace; font-weight: 900; color: #000000; letter-spacing: ${letterSpacing}; line-height: 1;">${pluVal}</span></div>`;
+          } else if (pluStyle === 'plain') {
+            numHtml = `<span style="font-size: ${fontSize}pt; font-family: monospace; font-weight: 900; color: #000000; letter-spacing: ${letterSpacing}; line-height: 1;">${pluVal}</span>`;
+          } else {
+            // box
+            numHtml = `<div style="border: 2px solid #000000; border-radius: 4px; padding: 2px 8px; display: inline-flex; align-items: center; justify-content: center;"><span style="font-size: ${fontSize}pt; font-family: monospace; font-weight: 900; color: #000000; letter-spacing: ${letterSpacing}; line-height: 1;">${pluVal}</span></div>`;
+          }
+
+          if (labelPos === 'inline') {
+            return `
+              <div style="width: 100%; display: flex; align-items: center; justify-content: ${justify}; gap: 6px; margin: 2px 0; ${transformStyle}">
+                ${labelText ? `<span style="font-size: 8px; font-family: monospace; font-weight: 700; color: #475569; text-transform: uppercase;">${labelText}</span>` : ''}
+                ${numHtml}
+              </div>
+            `;
+          }
+
+          return `
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: ${justify}; justify-content: center; margin: 2px 0; padding: 1px 0; ${transformStyle}">
+              ${labelPos === 'top' && labelText ? `<span style="font-size: 7px; font-family: monospace; color: #64748b; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px; line-height: 1;">${labelText}</span>` : ''}
+              ${numHtml}
             </div>
           `;
         }
@@ -194,18 +236,7 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         case 'productCode': {
           const fontSize = el.fontSize || 8.5;
           const align = el.textAlign || 'left';
-          const isWeight = item.isWeight;
-          const showPlu = isWeight && item.plu;
-
-          if (showPlu) {
-            return `
-              <div style="width: 100%; font-size: ${fontSize}pt; font-weight: 700; text-align: ${align}; color: #000000; ${transformStyle}">
-                <span style="color: #64748b; font-weight: 500;">PLU: </span>${escapeHtml(item.plu!)}
-              </div>
-            `;
-          }
-
-          const code = el.content || item.barcode.slice(-5);
+          const code = el.content || item.code || item.barcode.slice(-5);
           return `
             <div style="width: 100%; font-size: ${fontSize}pt; font-weight: 700; text-align: ${align}; color: #000000; ${transformStyle}">
               ${escapeHtml(el.prefix || 'Арт: ')}${escapeHtml(code)}${escapeHtml(el.suffix || '')}
@@ -256,8 +287,10 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
     })
     .join('');
 
+  const padX = template.config.paddingX ?? 2.5;
+  const padY = template.config.paddingY ?? 2.0;
   return `
-    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%;">
+    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; padding: ${padY}mm ${padX}mm; box-sizing: border-box;">
       ${elementsHtml}
     </div>
   `;
@@ -305,11 +338,12 @@ export function drawLabelOnCanvas(
     ctx.strokeRect(bw / 2, bw / 2, widthPx - bw, heightPx - bw);
   }
 
-  const elements = getTemplateElements(template.config);
+  const isWeight = isWeightProduct(item);
+  const elements = getTemplateElements(template.config, isWeight ? 'weight' : 'piece');
   const sorted = [...elements].filter((el) => el.visible).sort((a, b) => a.order - b.order);
 
-  const padX = Math.round(2.5 * scale);
-  const padTop = Math.round(2.1 * scale);
+  const padX = Math.round((template.config.paddingX ?? 2.5) * scale);
+  const padTop = Math.round((template.config.paddingY ?? 2.0) * scale);
   const contentWidth = widthPx - padX * 2;
   const contentHeight = heightPx - padTop * 2;
 
@@ -363,11 +397,27 @@ export function drawLabelOnCanvas(
         break;
       }
       case 'barcode': {
-        const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+        if (el.barcodeHideOnWeight && item.isWeight) {
+          break;
+        }
+        const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
         const barcodeH = Math.round(rawH * (scale / 3.78));
         const fontSizePx = Math.round(8.5 * (scale / 2.83));
         const digitsH = el.showBarcodeDigits !== false ? fontSizePx + 4 : 0;
         measured.push({ el, height: barcodeH + digitsH, fontSizePx: 0 });
+        break;
+      }
+      case 'pluCode': {
+        if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+          break;
+        }
+        const fontSizePx = Math.round((el.fontSize || 14) * (scale / 2.83));
+        const labelH =
+          el.pluLabelPosition === 'top' && (el.pluLabel ?? 'PLU КОД')
+            ? Math.round(7 * (scale / 2.83)) + 4
+            : 0;
+        const boxPad = el.pluStyle === 'badge' || el.pluStyle === 'box' ? 8 : 4;
+        measured.push({ el, height: fontSizePx + labelH + boxPad, fontSizePx });
         break;
       }
       case 'qrcode': {
@@ -597,52 +647,30 @@ export function drawLabelOnCanvas(
       }
 
       case 'barcode': {
-        // Весовой товар — рисуем крупный PLU вместо штрихкода
-        if (item.isWeight && item.plu) {
-          const pluLabelFontSizePx = Math.round(6 * (scale / 2.83));
-          const pluNumFontSizePx = Math.round((el.barcodeHeight || 45) / 3.2 * (scale / 2.83));
-
-          // Подпись «PLU КОД»
-          ctx.font = `500 ${pluLabelFontSizePx}px monospace`;
-          ctx.fillStyle = '#9ca3af';
-          ctx.textAlign = 'center';
-          ctx.fillText('PLU КОД', widthPx / 2 + offX, elementY + pluLabelFontSizePx);
-
-          // Сам PLU номер крупно
-          ctx.font = `900 ${pluNumFontSizePx}px monospace`;
-          ctx.fillStyle = '#000000';
-          const pluTextY = elementY + pluLabelFontSizePx + pluNumFontSizePx + 4;
-          ctx.fillText(item.plu, widthPx / 2 + offX, pluTextY);
-
-          // Рамка вокруг PLU
-          const pluW = ctx.measureText(item.plu).width + Math.round(16 * (scale / 3.78));
-          const pluH = pluNumFontSizePx + Math.round(6 * (scale / 3.78));
-          const boxX = (widthPx - pluW) / 2 + offX;
-          const boxY = pluTextY - pluNumFontSizePx - Math.round(3 * (scale / 3.78));
-          ctx.lineWidth = Math.max(1, Math.round(1.5 * (scale / 3.78)));
-          ctx.strokeStyle = '#000000';
-          ctx.beginPath();
-          ctx.roundRect(boxX, boxY, pluW, pluH, Math.round(3 * (scale / 3.78)));
-          ctx.stroke();
-
-          currentY += itemM.height + gapBetween;
+        if (el.barcodeHideOnWeight && item.isWeight) {
           break;
         }
 
-        const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+        const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
         const barcodeH = Math.round(rawH * (scale / 3.78));
         const cleanDigits = String(item.barcode || '4780111550194').trim();
 
         // barWidth: модуль штрихкода для термопринтера (203 DPI)
-        // Для EAN-13 ширина ~115 модулей: при ширине 2px получаем 230px (~28.75мм)
-        const barWidth = Math.max(1, Math.min(3, Math.floor(contentWidth / 115)));
+        // В превью штрихкод занимает ~70-85% ширины. На 203 DPI 1 модуль = 3-4 точки.
+        const isEan = el.barcodeType === 'EAN13' || /^\d{12,13}$/.test(cleanDigits);
+        const estModules = isEan ? 95 : 100;
+        const rawMod = el.barcodeWidth === 1 ? 2 : el.barcodeWidth === 3 ? 4 : 3;
+        let barWidth = rawMod;
+        while (barWidth > 1 && estModules * barWidth > contentWidth) {
+          barWidth -= 1;
+        }
         const fontSizePx = Math.round(8.5 * (scale / 2.83));
 
         const barcodeCanvas = document.createElement('canvas');
         let rendered = false;
 
         // Попытка EAN13 для 12-13 значных штрихкодов
-        if (/^\d{12,13}$/.test(cleanDigits)) {
+        if (el.barcodeType === 'EAN13' || /^\d{12,13}$/.test(cleanDigits)) {
           try {
             JsBarcode(barcodeCanvas, cleanDigits, {
               format: 'EAN13',
@@ -666,7 +694,7 @@ export function drawLabelOnCanvas(
           try {
             JsBarcode(barcodeCanvas, cleanDigits, {
               format: 'CODE128',
-              width: Math.max(1, Math.min(2, Math.floor(contentWidth / 130))),
+              width: barWidth,
               height: barcodeH,
               displayValue: el.showBarcodeDigits !== false,
               fontSize: fontSizePx,
@@ -682,8 +710,107 @@ export function drawLabelOnCanvas(
         }
 
         if (rendered && barcodeCanvas.width > 0) {
-          const drawX = Math.round((widthPx - barcodeCanvas.width) / 2) + offX;
+          let drawX = Math.round((widthPx - barcodeCanvas.width) / 2) + offX;
+          if (el.textAlign === 'left') {
+            drawX = padX + offX;
+          } else if (el.textAlign === 'right') {
+            drawX = widthPx - padX - barcodeCanvas.width + offX;
+          }
           ctx.drawImage(barcodeCanvas, drawX, elementY);
+        }
+
+        currentY += itemM.height + gapBetween;
+        break;
+      }
+
+      case 'pluCode': {
+        if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+          break;
+        }
+
+        const plu = String(item.plu || (item.isWeight ? '452' : '452'));
+        const pluStyle = el.pluStyle || 'box';
+        const labelText = el.pluLabel ?? 'PLU КОД';
+        const labelPos = el.pluLabelPosition || 'top';
+        const pluNumFontSizePx = Math.round((el.fontSize || 14) * (scale / 2.83));
+        const labelFontSizePx = Math.round(7 * (scale / 2.83));
+
+        let currentPluY = elementY;
+
+        // Подпись сверху
+        if (labelPos === 'top' && labelText) {
+          ctx.font = `600 ${labelFontSizePx}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+          ctx.fillStyle = '#64748b';
+          if (el.textAlign === 'left') {
+            ctx.textAlign = 'left';
+            ctx.fillText(labelText, padX + offX, currentPluY + labelFontSizePx);
+          } else if (el.textAlign === 'right') {
+            ctx.textAlign = 'right';
+            ctx.fillText(labelText, widthPx - padX + offX, currentPluY + labelFontSizePx);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.fillText(labelText, widthPx / 2 + offX, currentPluY + labelFontSizePx);
+          }
+          currentPluY += labelFontSizePx + 3;
+        }
+
+        // Сам номер PLU
+        ctx.font = `900 ${pluNumFontSizePx}px monospace`;
+        const textW = ctx.measureText(plu).width;
+        const boxPadX = Math.round(12 * (scale / 3.78));
+        const boxPadY = Math.round(4 * (scale / 3.78));
+        const pluBoxW = textW + boxPadX * 2;
+        const pluBoxH = pluNumFontSizePx + boxPadY * 2;
+
+        let boxX = (widthPx - pluBoxW) / 2 + offX;
+        let textX = widthPx / 2 + offX;
+
+        if (el.textAlign === 'left') {
+          boxX = padX + offX;
+          textX = boxX + pluBoxW / 2;
+        } else if (el.textAlign === 'right') {
+          boxX = widthPx - padX - pluBoxW + offX;
+          textX = boxX + pluBoxW / 2;
+        }
+
+        const boxY = currentPluY;
+        const textY = boxY + pluBoxH - boxPadY - Math.round(1 * (scale / 3.78));
+
+        if (pluStyle === 'badge') {
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.roundRect(boxX, boxY, pluBoxW, pluBoxH, Math.round(3 * (scale / 3.78)));
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.fillText(plu, textX, textY);
+        } else if (pluStyle === 'underline') {
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.fillText(plu, textX, textY);
+
+          ctx.lineWidth = Math.max(1, Math.round(1.5 * (scale / 3.78)));
+          ctx.strokeStyle = '#000000';
+          ctx.beginPath();
+          ctx.moveTo(boxX, boxY + pluBoxH);
+          ctx.lineTo(boxX + pluBoxW, boxY + pluBoxH);
+          ctx.stroke();
+        } else if (pluStyle === 'plain') {
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.fillText(plu, textX, textY);
+        } else {
+          // box
+          ctx.lineWidth = Math.max(1, Math.round(1.5 * (scale / 3.78)));
+          ctx.strokeStyle = '#000000';
+          ctx.beginPath();
+          ctx.roundRect(boxX, boxY, pluBoxW, pluBoxH, Math.round(3 * (scale / 3.78)));
+          ctx.stroke();
+
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.fillText(plu, textX, textY);
         }
 
         currentY += itemM.height + gapBetween;
@@ -730,23 +857,10 @@ export function drawLabelOnCanvas(
         }
 
         const textBaseY = elementY + fontSizePx * 0.85;
-
-        if (item.isWeight && item.plu) {
-          // Для весового товара: PLU-код
-          ctx.fillStyle = '#64748b';
-          ctx.fillText('PLU: ', drawX, textBaseY);
-          const prefixW = ctx.measureText('PLU: ').width;
-          const pluX = ctx.textAlign === 'left' ? drawX + prefixW : drawX;
-          ctx.fillStyle = '#000000';
-          ctx.font = `700 ${fontSizePx}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
-          ctx.fillText(item.plu, pluX, textBaseY);
-        } else {
-          // Обычный артикул
-          const code = el.content || item.barcode.slice(-5);
-          const fullText = `${el.prefix || 'Арт: '}${code}${el.suffix || ''}`;
-          ctx.fillStyle = '#000000';
-          ctx.fillText(fullText, drawX, textBaseY);
-        }
+        const code = el.content || item.code || item.barcode.slice(-5);
+        const fullText = `${el.prefix || 'Арт: '}${code}${el.suffix || ''}`;
+        ctx.fillStyle = '#000000';
+        ctx.fillText(fullText, drawX, textBaseY);
 
         currentY += itemM.height + gapBetween;
         break;
@@ -863,22 +977,27 @@ function drawQrMatrix(ctx: CanvasRenderingContext2D, x: number, y: number, size:
 export async function generateLabelsPdf({
   template,
   items,
+  resolveTemplate,
 }: GeneratePdfOptions): Promise<jsPDF> {
-  const widthMm = template.widthMm || 58;
-  const heightMm = template.heightMm || 40;
+  const firstItemTemplate = (items[0] && resolveTemplate ? resolveTemplate(items[0]) : template) || template;
+  const initialWidth = firstItemTemplate?.widthMm || 58;
+  const initialHeight = firstItemTemplate?.heightMm || 40;
 
   const doc = new jsPDF({
-    orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+    orientation: initialWidth > initialHeight ? 'landscape' : 'portrait',
     unit: 'mm',
-    format: [widthMm, heightMm],
+    format: [initialWidth, initialHeight],
     compress: true,
   });
 
   let isFirstPage = true;
 
   for (const item of items) {
+    const itemTemplate = resolveTemplate ? resolveTemplate(item) : template!;
+    const widthMm = itemTemplate.widthMm || 58;
+    const heightMm = itemTemplate.heightMm || 40;
     const copies = item.quantity || 1;
-    const canvas = drawLabelOnCanvas(template, item, 8);
+    const canvas = drawLabelOnCanvas(itemTemplate, item, 8);
     const pngDataUrl = canvas.toDataURL('image/png', 1.0);
 
     for (let c = 0; c < copies; c++) {
@@ -895,7 +1014,8 @@ export async function generateLabelsPdf({
 
 export async function downloadLabelsPdf(options: GeneratePdfOptions, filename?: string): Promise<void> {
   const doc = await generateLabelsPdf(options);
-  const fname = filename || `ценники_${options.template.widthMm}x${options.template.heightMm}мм.pdf`;
+  const tpl = options.template || (options.items[0] && options.resolveTemplate ? options.resolveTemplate(options.items[0]) : undefined);
+  const fname = filename || `ценники_${tpl?.widthMm || 58}x${tpl?.heightMm || 40}мм.pdf`;
   doc.save(fname);
 }
 
@@ -911,9 +1031,14 @@ export async function openLabelsPdfInNewTab(options: GeneratePdfOptions): Promis
  * Использует ту же canvas-отрисовку высокой четкости (203 DPI), что и экспорт в PDF,
  * гарантируя 100% визуальную и размерную идентичность ценников между печатью через сервис и печатью через браузер.
  */
-export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]): void {
-  const widthMm = template.widthMm || 58;
-  const heightMm = template.heightMm || 40;
+export function printViaBrowser(
+  template: PrintTemplate,
+  items: PrintJobItem[],
+  resolveTemplate?: (item: PrintJobItem) => PrintTemplate
+): void {
+  const initialTemplate = (items[0] && resolveTemplate ? resolveTemplate(items[0]) : template) || template;
+  const widthMm = initialTemplate?.widthMm || 58;
+  const heightMm = initialTemplate?.heightMm || 40;
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
@@ -930,18 +1055,22 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
   let pagesHtml = '';
 
   for (const item of items) {
+    const itemTemplate = resolveTemplate ? resolveTemplate(item) : template;
+    const itemWidth = itemTemplate.widthMm || widthMm;
+    const itemHeight = itemTemplate.heightMm || heightMm;
     const copies = item.quantity || 1;
-    const canvas = drawLabelOnCanvas(template, item, 8);
+    const canvas = drawLabelOnCanvas(itemTemplate, item, 8);
     const dataUrl = canvas.toDataURL('image/png', 1.0);
 
     for (let c = 0; c < copies; c++) {
       pagesHtml += `
-        <div class="label-page">
-          <img src="${dataUrl}" alt="Label" />
+        <div class="label-page" style="width: ${itemWidth}mm; height: ${itemHeight}mm;">
+          <img src="${dataUrl}" alt="Label" style="width: ${itemWidth}mm; height: ${itemHeight}mm;" />
         </div>
       `;
     }
   }
+
 
   doc.open();
   doc.write(`
@@ -953,7 +1082,7 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
         <style>
           @page {
             size: ${widthMm}mm ${heightMm}mm;
-            margin: 0;
+            margin: 0mm;
           }
           * {
             box-sizing: border-box;
@@ -963,9 +1092,41 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
           html, body {
             margin: 0;
             padding: 0;
+            width: ${widthMm}mm;
+            height: ${heightMm}mm;
             background: #ffffff;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+          @media print {
+            @page {
+              size: ${widthMm}mm ${heightMm}mm;
+              margin: 0mm !important;
+            }
+            html, body {
+              width: ${widthMm}mm !important;
+              height: ${heightMm}mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: hidden !important;
+            }
+            .label-page {
+              width: ${widthMm}mm !important;
+              height: ${heightMm}mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              page-break-after: always;
+              break-after: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            img {
+              width: 100% !important;
+              height: 100% !important;
+              max-width: 100% !important;
+              max-height: 100% !important;
+              display: block !important;
+            }
           }
           .label-page {
             width: ${widthMm}mm;
@@ -981,8 +1142,8 @@ export function printViaBrowser(template: PrintTemplate, items: PrintJobItem[]):
             background: #ffffff;
           }
           img {
-            width: ${widthMm}mm;
-            height: ${heightMm}mm;
+            width: 100%;
+            height: 100%;
             display: block;
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;

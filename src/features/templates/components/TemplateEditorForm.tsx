@@ -6,7 +6,8 @@ import { useTemplateEditor } from '../hooks/use-template-editor';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/ui';
 import { TsplPreviewModal } from '@/features/print';
 import { LabelLivePreview } from './LabelLivePreview';
-import { Move } from 'lucide-react';
+import { Move, Tag, Scale, Sparkles } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
 import {
   EditorHeader,
   EditorTabsNav,
@@ -44,6 +45,8 @@ export function TemplateEditorForm({
   const {
     activeTab,
     setActiveTab,
+    viewMode,
+    setViewMode,
     name,
     setName,
     widthMm,
@@ -67,6 +70,7 @@ export function TemplateEditorForm({
     handleDuplicateElement,
     handleDeleteElement,
     handleResetToDefault,
+    handleCopyFromOtherMode,
     handleApplyPreset,
     handleConfigChange,
     applyPresetSize,
@@ -90,6 +94,52 @@ export function TemplateEditorForm({
         onSave={() => handleSubmit()}
       />
 
+      {/* Switcher: Штучный вид (шт) vs Весовой вид (кг) в одном шаблоне */}
+      <div className="bg-card rounded-2xl border border-border p-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-semibold text-muted-foreground shrink-0">
+            Редактируемый вид:
+          </span>
+          <div className="inline-flex p-1 bg-muted rounded-xl border border-border/70">
+            <button
+              type="button"
+              onClick={() => setViewMode('piece')}
+              className={cn(
+                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                viewMode === 'piece'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Tag className="size-3.5" />
+              Штучные товары (шт)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('weight')}
+              className={cn(
+                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                viewMode === 'weight'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Scale className="size-3.5" />
+              Весовые товары (кг)
+            </button>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 bg-muted/60 px-3 py-1.5 rounded-lg border border-border/50">
+          <Sparkles className="size-3.5 text-amber-500 shrink-0" />
+          <span>
+            {viewMode === 'piece'
+              ? 'Вид со штрихкодом и ценой за шт. Применяется к штучным товарам.'
+              : 'Вид с крупным PLU-кодом весов и ценой за кг. Применяется к весовым товарам.'}
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Editor Form Columns (Left) */}
         <div className="lg:col-span-7 flex flex-col gap-5">
@@ -109,6 +159,8 @@ export function TemplateEditorForm({
                 onToggleVisibility={handleToggleVisibility}
                 onDuplicate={handleDuplicateElement}
                 onDelete={handleDeleteElement}
+                viewMode={viewMode}
+                onCopyFromOtherMode={handleCopyFromOtherMode}
               />
 
               {selectedElement && (
@@ -157,7 +209,7 @@ export function TemplateEditorForm({
               <div>
                 <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
                   <Move className="size-4 text-primary" />
-                  Интерактивный холст
+                  Интерактивный холст: {viewMode === 'weight' ? 'Весовой вид (кг)' : 'Штучный вид (шт)'}
                 </CardTitle>
                 <CardDescription className="text-xs">
                   Кликните на элемент для выбора или перетащите для смещения
@@ -165,19 +217,26 @@ export function TemplateEditorForm({
               </div>
             </CardHeader>
             <CardContent className="p-5">
-              <div className="label-preview-container min-h-[300px] flex items-center justify-center">
+              <div className="label-preview-container min-h-[300px] flex items-center justify-center py-10 px-8">
                 <LabelLivePreview
                   widthMm={widthMm}
                   heightMm={heightMm}
                   config={config}
                   elements={elements}
                   selectedElementId={selectedElementId}
-                  onSelectElement={setSelectedElementId}
+                  onSelectElement={(id) => {
+                    setSelectedElementId(id);
+                    if (id && activeTab !== 'elements') {
+                      setActiveTab('elements');
+                    }
+                  }}
                   onMoveElement={handleMoveElement}
                   onReorderElement={handleReorder}
                   onToggleElementVisibility={handleToggleVisibility}
                   onDeleteElement={handleDeleteElement}
                   isInteractive={true}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
                 />
               </div>
 
@@ -188,9 +247,15 @@ export function TemplateEditorForm({
                   <span className="font-mono text-primary">{widthMm} × {heightMm} мм</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span>Всего слоев:</span>
+                  <span>Текущий вид:</span>
+                  <strong className={viewMode === 'weight' ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}>
+                    {viewMode === 'weight' ? '⚖️ Весовой (PLU)' : '🏷️ Штучный (Штрихкод)'}
+                  </strong>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span>Слоев в виде:</span>
                   <strong className="text-foreground">
-                    {elements.length} ({elements.filter((e) => e.visible).length} видимых)
+                    {elements.length} ({elements.filter((e) => e.visible).length} активных)
                   </strong>
                 </div>
                 <div className="flex justify-between text-xs">

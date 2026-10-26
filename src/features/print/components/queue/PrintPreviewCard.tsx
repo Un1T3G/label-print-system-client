@@ -19,7 +19,8 @@ import {
   SelectValue,
   Skeleton,
 } from '@/shared/ui';
-import { Sliders, Eye, Terminal } from 'lucide-react';
+import { Sliders, Eye, Terminal, Sparkles } from 'lucide-react';
+
 import { LabelLivePreview } from '@/features/templates';
 
 interface PrintPreviewCardProps {
@@ -27,6 +28,7 @@ interface PrintPreviewCardProps {
   isLoadingTemplates: boolean;
   activeTemplate?: PrintTemplate;
   previewItem?: PrintJobItem;
+  selectedTemplateId?: string;
   onSelectTemplateId: (id: string) => void;
   onOpenTsplModal: () => void;
 }
@@ -36,9 +38,12 @@ export function PrintPreviewCard({
   isLoadingTemplates,
   activeTemplate,
   previewItem,
+  selectedTemplateId = 'auto',
   onSelectTemplateId,
   onOpenTsplModal,
 }: PrintPreviewCardProps) {
+  const isAutoMode = selectedTemplateId === 'auto' || !selectedTemplateId;
+
   return (
     <div className="flex flex-col gap-5">
       {/* Template Selection Card */}
@@ -57,7 +62,7 @@ export function PrintPreviewCard({
             </Link>
           </div>
           <CardDescription className="text-xs">
-            Выберите шаблон для печати текущего пакета ценников
+            Автоматический выбор раздельных шаблонов или принудительный шаблон
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0 flex flex-col gap-3">
@@ -65,7 +70,7 @@ export function PrintPreviewCard({
             <Skeleton className="h-9 w-full rounded-lg" />
           ) : (
             <Select
-              value={activeTemplate?.id || ''}
+              value={selectedTemplateId || 'auto'}
               onValueChange={onSelectTemplateId}
             >
               <SelectTrigger className="w-full">
@@ -73,19 +78,48 @@ export function PrintPreviewCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {templates?.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name} ({t.widthMm}×{t.heightMm} мм)
-                      {t.isDefault ? ' [По умолчанию]' : ''}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="auto" className="font-semibold text-primary">
+                    ⚡ Автовыбор (Штучный / Весовой)
+                  </SelectItem>
+                  {templates?.map((t) => {
+                    const hasBothViews =
+                      (Boolean(t.config?.pieceElements) && Boolean(t.config?.weightElements)) ||
+                      t.config?.targetType === 'all';
+                    const isWeight =
+                      !hasBothViews &&
+                      (t.config?.targetType === 'weight' || t.name.toLowerCase().includes('весов'));
+                    const icon = hasBothViews ? '🏷️⚖️ ' : isWeight ? '⚖️ ' : '🏷️ ';
+
+                    return (
+                      <SelectItem key={t.id} value={t.id}>
+                        {icon}{t.name} ({t.widthMm}×{t.heightMm} мм)
+                        {t.isDefault ? ' [Основной]' : ''}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>
           )}
 
+          {isAutoMode && (
+            <div className="flex items-start gap-2 p-2.5 bg-primary/5 rounded-lg border border-primary/20 text-xs text-primary">
+              <Sparkles className="size-4 shrink-0 mt-0.5" />
+              <div className="leading-tight">
+                <span className="font-semibold block">Умный автовыбор активен</span>
+                <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                  Для штучных товаров используется шаблон со штрихкодом, для весовых — шаблон с крупным PLU-кодом.
+                </span>
+              </div>
+            </div>
+          )}
+
           {activeTemplate && (
             <div className="p-3 bg-muted/50 rounded-lg border border-border text-xs flex flex-col gap-1.5 text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Текущий макет для превью:</span>
+                <strong className="text-foreground">{activeTemplate.name}</strong>
+              </div>
               <div className="flex justify-between">
                 <span>Физический размер:</span>
                 <strong className="text-foreground">
@@ -101,15 +135,16 @@ export function PrintPreviewCard({
                 </strong>
               </div>
               <div className="flex justify-between">
-                <span>Штрихкод:</span>
+                <span>Штрихкод / PLU:</span>
                 <strong className="text-foreground">
-                  {activeTemplate.config.showBarcode ? 'Да' : 'Нет'}
+                  {activeTemplate.config.showBarcode !== false ? 'Штрихкод выводится' : 'Только PLU-код'}
                 </strong>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+
 
       {/* Live Preview Card */}
       <Card>

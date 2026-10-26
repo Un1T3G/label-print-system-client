@@ -40,6 +40,8 @@ interface ElementListCardProps {
   onToggleVisibility: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  viewMode?: 'piece' | 'weight';
+  onCopyFromOtherMode?: () => void;
 }
 
 export function ElementListCard({
@@ -52,6 +54,8 @@ export function ElementListCard({
   onToggleVisibility,
   onDuplicate,
   onDelete,
+  viewMode,
+  onCopyFromOtherMode,
 }: ElementListCardProps) {
   return (
     <Card className="border-slate-200 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900">
@@ -59,14 +63,36 @@ export function ElementListCard({
         <div>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
             <Layers className="w-4 h-4 text-blue-600" />
-            Слои ценника ({elements.length})
+            {viewMode === 'weight' ? 'Слои весового макета (кг)' : 'Слои штучного макета (шт)'} ({elements.length})
           </CardTitle>
           <CardDescription className="text-xs">
-            Управляйте порядком и видимостью элементов ценника
+            {viewMode === 'weight'
+              ? 'Настройка элементов для печати весовых товаров (с кодом весов)'
+              : 'Настройка элементов для печати штучных товаров (со штрихкодом)'}
           </CardDescription>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {onCopyFromOtherMode && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCopyFromOtherMode}
+              className="text-xs gap-1 h-8 px-2.5 text-muted-foreground hover:text-foreground"
+              title={
+                viewMode === 'weight'
+                  ? 'Скопировать расположение слоев из штучного макета'
+                  : 'Скопировать расположение слоев из весового макета'
+              }
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {viewMode === 'weight' ? 'Скопировать из шт.' : 'Скопировать из кг.'}
+              </span>
+            </Button>
+          )}
+
           <Button
             type="button"
             variant="ghost"
@@ -130,7 +156,13 @@ export function ElementListCard({
                       )}
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px] font-mono">
-                      {el.content || (el.type === 'price' ? '12 000 сум' : el.type === 'barcode' ? '4780111550194' : el.type)}
+                      {el.type === 'pluCode'
+                        ? `${el.pluLabel || 'PLU'}: 452 (${el.pluStyle || 'box'})`
+                        : el.type === 'barcode'
+                        ? `${el.barcodeType || '128'} • ${el.barcodeHeight || 42}pt`
+                        : el.type === 'price'
+                        ? '12 000 сум'
+                        : el.content || el.type}
                     </p>
                   </div>
                 </div>

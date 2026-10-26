@@ -6,6 +6,8 @@ export interface PrintJobItem {
   price: number;
   measureName: string;
   quantity: number;
+  /** Артикул или код товара */
+  code?: string;
   /** PLU-код весового товара (aliasList[0] из Umag) */
   plu?: string;
   /** true если товар весовой (type === 1) */

@@ -126,20 +126,23 @@ export function DiscountBadgePreview({ element: el }: ElementRenderProps) {
 export function BarcodePreview({ element: el, activeProduct }: ElementRenderProps) {
   const svgRef = React.useRef<SVGSVGElement>(null);
   const barcode = String(activeProduct.barcode || '4780111550194').trim();
-  const rawH = Math.min(36, Math.max(16, (el.barcodeHeight || 45) / 2.2));
+  const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
 
   const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
-  const plu = activeProduct.plu;
+  const hideOnWeight = el.barcodeHideOnWeight;
 
   React.useEffect(() => {
     if (!svgRef.current) return;
-    if (isWeight && plu) return; // для весовых — штрихкод не нужен
+    if (hideOnWeight && isWeight) return;
+
     try {
-      const format = /^\d{13}$/.test(barcode) ? 'EAN13' : 'CODE128';
+      const preferredFormat = el.barcodeType === 'EAN13' || /^\d{13}$/.test(barcode) ? 'EAN13' : 'CODE128';
+      const barW = el.barcodeWidth === 1 ? 1.2 : el.barcodeWidth === 3 ? 2.2 : 1.6;
+
       try {
         JsBarcode(svgRef.current, barcode, {
-          format,
-          width: 1.5,
+          format: preferredFormat,
+          width: barW,
           height: rawH,
           displayValue: el.showBarcodeDigits !== false,
           fontSize: 10,
@@ -151,7 +154,7 @@ export function BarcodePreview({ element: el, activeProduct }: ElementRenderProp
       } catch {
         JsBarcode(svgRef.current, barcode, {
           format: 'CODE128',
-          width: 1.5,
+          width: barW,
           height: rawH,
           displayValue: el.showBarcodeDigits !== false,
           fontSize: 10,
@@ -164,30 +167,126 @@ export function BarcodePreview({ element: el, activeProduct }: ElementRenderProp
     } catch (err) {
       console.warn('Barcode preview error:', err);
     }
-  }, [barcode, rawH, el.showBarcodeDigits, isWeight, plu]);
+  }, [barcode, rawH, el.showBarcodeDigits, el.barcodeType, el.barcodeWidth, hideOnWeight, isWeight]);
 
-  // Весовой товар — показываем большой PLU вместо штрихкода
-  if (isWeight && plu) {
+  if (hideOnWeight && isWeight) {
     return (
-      <div className="w-full flex flex-col items-center justify-center my-0.5 py-1">
-        <span className="text-[7px] font-mono text-slate-400 uppercase tracking-widest leading-none mb-0.5">
-          PLU код
-        </span>
-        <div className="border-2 border-black rounded px-3 py-0.5 flex items-center justify-center">
-          <span
-            className="font-black font-mono text-black tracking-[0.2em] leading-none"
-            style={{ fontSize: `${(el.barcodeHeight || 45) / 3.2}pt` }}
-          >
-            {plu}
-          </span>
-        </div>
+      <div className="w-full flex items-center justify-center my-0.5 py-1 px-2 border border-dashed border-slate-300 rounded text-[9px] text-slate-400 font-mono">
+        Штрихкод скрыт для весового товара
       </div>
     );
   }
 
+  const justifyClass =
+    el.textAlign === 'left' ? 'items-start' : el.textAlign === 'right' ? 'items-end' : 'items-center';
+
   return (
-    <div className="w-full flex flex-col items-center justify-center my-0.5 overflow-hidden">
+    <div className={cn('w-full flex flex-col my-0.5 overflow-hidden', justifyClass)}>
       <svg ref={svgRef} className="max-w-full" />
+    </div>
+  );
+}
+
+export function PluCodePreview({ element: el, activeProduct }: ElementRenderProps) {
+  const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
+  const plu = activeProduct.plu || (isWeight ? '452' : '452');
+  const showOnlyForWeight = el.showOnlyForWeight !== false;
+
+  if (showOnlyForWeight && !isWeight && !activeProduct.plu) {
+    return (
+      <div className="w-full flex items-center justify-center my-0.5 py-1 px-2 border border-dashed border-amber-300 bg-amber-50/50 rounded text-[9px] text-amber-600 font-mono">
+        PLU: скрыт (товар штучный, отображается для весовых)
+      </div>
+    );
+  }
+
+  const pluStyle = el.pluStyle || 'box';
+  const labelText = el.pluLabel ?? 'PLU КОД';
+  const labelPosition = el.pluLabelPosition || 'top';
+  const fontSizePt = el.fontSize || 14;
+
+  const trackingClass =
+    el.letterSpacing === 'normal'
+      ? 'tracking-normal'
+      : el.letterSpacing === 'widest'
+      ? 'tracking-[0.25em]'
+      : 'tracking-[0.15em]';
+
+  const justifyClass =
+    el.textAlign === 'left' ? 'justify-start' : el.textAlign === 'right' ? 'justify-end' : 'justify-center';
+
+  const alignItemClass =
+    el.textAlign === 'left' ? 'items-start' : el.textAlign === 'right' ? 'items-end' : 'items-center';
+
+  // Содержимое самого номера PLU в зависимости от стиля
+  const renderPluNumber = () => {
+    switch (pluStyle) {
+      case 'badge':
+        return (
+          <div className="bg-black text-white rounded px-2.5 py-0.5 inline-flex items-center justify-center shadow-xs">
+            <span
+              className={cn('font-black font-mono leading-none', trackingClass)}
+              style={{ fontSize: `${fontSizePt}pt` }}
+            >
+              {plu}
+            </span>
+          </div>
+        );
+      case 'underline':
+        return (
+          <div className="border-b-2 border-black px-1.5 pb-0.5 inline-flex items-center justify-center">
+            <span
+              className={cn('font-black font-mono text-black leading-none', trackingClass)}
+              style={{ fontSize: `${fontSizePt}pt` }}
+            >
+              {plu}
+            </span>
+          </div>
+        );
+      case 'plain':
+        return (
+          <span
+            className={cn('font-black font-mono text-black leading-none', trackingClass)}
+            style={{ fontSize: `${fontSizePt}pt` }}
+          >
+            {plu}
+          </span>
+        );
+      case 'box':
+      default:
+        return (
+          <div className="border-2 border-black rounded px-2.5 py-0.5 inline-flex items-center justify-center">
+            <span
+              className={cn('font-black font-mono text-black leading-none', trackingClass)}
+              style={{ fontSize: `${fontSizePt}pt` }}
+            >
+              {plu}
+            </span>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className={cn('w-full flex flex-col my-0.5 py-0.5', alignItemClass)}>
+      {labelPosition === 'top' && labelText && (
+        <span className="text-[7.5px] font-mono text-slate-500 uppercase tracking-widest leading-none mb-0.5">
+          {labelText}
+        </span>
+      )}
+
+      {labelPosition === 'inline' ? (
+        <div className={cn('flex items-center gap-1.5', justifyClass)}>
+          {labelText && (
+            <span className="text-[9px] font-mono font-bold text-slate-600 uppercase tracking-wider">
+              {labelText}
+            </span>
+          )}
+          {renderPluNumber()}
+        </div>
+      ) : (
+        renderPluNumber()
+      )}
     </div>
   );
 }
@@ -208,9 +307,6 @@ export function QrCodePreview({ element: el }: ElementRenderProps) {
 }
 
 export function ProductCodePreview({ element: el, activeProduct }: ElementRenderProps) {
-  const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
-  const showPlu = isWeight && activeProduct.plu;
-
   return (
     <div
       className={cn(
@@ -222,18 +318,9 @@ export function ProductCodePreview({ element: el, activeProduct }: ElementRender
         fontWeight: el.fontWeight === 'bold' ? 700 : 500,
       }}
     >
-      {showPlu ? (
-        <>
-          <span className="text-slate-500">PLU: </span>
-          <strong className="text-black">{activeProduct.plu}</strong>
-        </>
-      ) : (
-        <>
-          {el.prefix || 'Арт: '}
-          <strong className="text-black">{activeProduct.code || el.content || '10452'}</strong>
-          {el.suffix || ''}
-        </>
-      )}
+      {el.prefix || 'Арт: '}
+      <strong className="text-black">{activeProduct.code || el.content || '10452'}</strong>
+      {el.suffix || ''}
     </div>
   );
 }

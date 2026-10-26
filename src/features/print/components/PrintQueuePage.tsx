@@ -23,11 +23,13 @@ export function PrintQueuePage() {
     clearCart,
     templates,
     isLoadingTemplates,
+    selectedTemplateId,
     setSelectedTemplateId,
     previewItemIndex,
     setPreviewItemIndex,
     activeTemplate,
     previewItem,
+    getItemTemplate,
     isSendingPdf,
     isTsplModalOpen,
     setIsTsplModalOpen,
@@ -96,6 +98,7 @@ export function PrintQueuePage() {
               totalLabelsCount={totalLabelsCount}
               currencySymbol={activeTemplate?.config?.currencySymbol}
               previewItemIndex={previewItemIndex}
+              getItemTemplate={getItemTemplate}
               onSelectPreviewItem={setPreviewItemIndex}
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeItem}
@@ -109,6 +112,7 @@ export function PrintQueuePage() {
               isLoadingTemplates={isLoadingTemplates}
               activeTemplate={activeTemplate}
               previewItem={previewItem}
+              selectedTemplateId={selectedTemplateId}
               onSelectTemplateId={setSelectedTemplateId}
               onOpenTsplModal={() => setIsTsplModalOpen(true)}
             />

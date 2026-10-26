@@ -104,7 +104,8 @@ export async function updateTemplateByIdHandler(
       };
 
       return NextResponse.json(formatted);
-    } catch {
+    } catch (dbError) {
+      console.error('[updateTemplateByIdHandler] Ошибка обновления шаблона в БД:', dbError);
       const existing = DEFAULT_TEMPLATES.find((t) => t.id === id);
       const fallback: PrintTemplate = {
         id,

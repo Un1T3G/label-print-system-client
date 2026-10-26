@@ -6,13 +6,15 @@ import type {
   CreatePrintTemplateDto,
   LabelElement,
   LabelElementType,
+  TemplateViewMode,
 } from '../types';
 import {
   getTemplateElements,
   syncConfigWithElements,
   ELEMENT_PRESET_CATALOG,
   LAYOUT_PRESETS,
-  getDefaultElements,
+  getDefaultPieceElements,
+  getDefaultWeightElements,
 } from '../lib/label-elements';
 import { toast } from 'sonner';
 
@@ -44,10 +46,19 @@ export function useTemplateEditor({
   const [heightMm, setHeightMm] = useState<number>(initialHeightMm);
   const [isDefault, setIsDefault] = useState<boolean>(initialIsDefault);
 
-  // Initialize elements from config or defaults
-  const [elements, setElements] = useState<LabelElement[]>(() =>
-    getTemplateElements(initialConfig)
+  // Двойной макет: штучный (шт) и весовой (кг) в одном шаблоне
+  const [viewMode, setViewMode] = useState<TemplateViewMode>('piece');
+
+  const [pieceElements, setPieceElements] = useState<LabelElement[]>(() =>
+    getTemplateElements(initialConfig, 'piece')
   );
+
+  const [weightElements, setWeightElements] = useState<LabelElement[]>(() =>
+    getTemplateElements(initialConfig, 'weight')
+  );
+
+  // Текущий активный список элементов в зависимости от режима просмотра
+  const elements = viewMode === 'piece' ? pieceElements : weightElements;
 
   const [selectedElementId, setSelectedElementId] = useState<string | null>(
     elements[0]?.id || null
@@ -59,7 +70,9 @@ export function useTemplateEditor({
   // High-level config state (printer params, borders)
   const [config, setConfig] = useState<PrintTemplateConfig>(() => ({
     ...initialConfig,
-    elements: getTemplateElements(initialConfig),
+    pieceElements: getTemplateElements(initialConfig, 'piece'),
+    weightElements: getTemplateElements(initialConfig, 'weight'),
+    elements: getTemplateElements(initialConfig, 'piece'),
     showBorder: initialConfig?.showBorder ?? false,
     borderWidth: initialConfig?.borderWidth ?? 1,
     density: initialConfig?.density ?? 8,
@@ -70,9 +83,29 @@ export function useTemplateEditor({
 
   const selectedElement = elements.find((el) => el.id === selectedElementId) || null;
 
+  const handleViewModeChange = (mode: TemplateViewMode) => {
+    setViewMode(mode);
+    const targetList = mode === 'piece' ? pieceElements : weightElements;
+    setSelectedElementId(targetList[0]?.id || null);
+  };
+
   const updateElements = (newElements: LabelElement[]) => {
-    setElements(newElements);
-    setConfig((prev) => syncConfigWithElements(newElements, prev));
+    if (viewMode === 'piece') {
+      setPieceElements(newElements);
+    } else {
+      setWeightElements(newElements);
+    }
+
+    setConfig((prev) => {
+      const updatedPiece = viewMode === 'piece' ? newElements : pieceElements;
+      const updatedWeight = viewMode === 'weight' ? newElements : weightElements;
+      return {
+        ...syncConfigWithElements(newElements, prev),
+        pieceElements: updatedPiece,
+        weightElements: updatedWeight,
+        elements: updatedPiece, // backwards compatibility
+      };
+    });
   };
 
   const handleReorder = (id: string, direction: 'up' | 'down') => {
@@ -189,10 +222,31 @@ export function useTemplateEditor({
   };
 
   const handleResetToDefault = () => {
-    const standard = getDefaultElements(config);
-    updateElements(standard);
-    setSelectedElementId(standard[0]?.id || null);
-    toast.info('Макет сброшен к стандартному виду');
+    if (viewMode === 'piece') {
+      const standard = getDefaultPieceElements(config);
+      updateElements(standard);
+      setSelectedElementId(standard[0]?.id || null);
+      toast.info('Штучный макет сброшен к стандартному виду');
+    } else {
+      const standard = getDefaultWeightElements(config);
+      updateElements(standard);
+      setSelectedElementId(standard[0]?.id || null);
+      toast.info('Весовой макет сброшен к стандартному виду');
+    }
+  };
+
+  const handleCopyFromOtherMode = () => {
+    if (viewMode === 'weight') {
+      const cloned = JSON.parse(JSON.stringify(pieceElements)) as LabelElement[];
+      setWeightElements(cloned);
+      setSelectedElementId(cloned[0]?.id || null);
+      toast.success('Штучный макет скопирован в весовой вид');
+    } else {
+      const cloned = JSON.parse(JSON.stringify(weightElements)) as LabelElement[];
+      setPieceElements(cloned);
+      setSelectedElementId(cloned[0]?.id || null);
+      toast.success('Весовой макет скопирован в штучный вид');
+    }
   };
 
   const handleApplyPreset = (presetId: string) => {
@@ -220,7 +274,14 @@ export function useTemplateEditor({
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const finalConfig = syncConfigWithElements(elements, config);
+    const currentSync = syncConfigWithElements(elements, config);
+    const finalConfig: PrintTemplateConfig = {
+      ...currentSync,
+      pieceElements,
+      weightElements,
+      elements: pieceElements,
+      targetType: 'all',
+    };
     await onSubmit({
       name: name.trim(),
       widthMm: Number(widthMm),
@@ -233,6 +294,10 @@ export function useTemplateEditor({
   return {
     activeTab,
     setActiveTab,
+    viewMode,
+    setViewMode: handleViewModeChange,
+    pieceElements,
+    weightElements,
     name,
     setName,
     widthMm,
@@ -258,6 +323,7 @@ export function useTemplateEditor({
     handleDuplicateElement,
     handleDeleteElement,
     handleResetToDefault,
+    handleCopyFromOtherMode,
     handleApplyPreset,
     handleConfigChange,
     applyPresetSize,

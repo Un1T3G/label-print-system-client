@@ -4,6 +4,7 @@ export { InspectorPrefixSuffixControls } from './InspectorPrefixSuffixControls';
 export { InspectorTypographyControls } from './InspectorTypographyControls';
 export { InspectorStyleModifiers } from './InspectorStyleModifiers';
 export { InspectorBarcodeControls } from './InspectorBarcodeControls';
+export { InspectorPluControls } from './InspectorPluControls';
 export { InspectorQrControls } from './InspectorQrControls';
 export { InspectorPriceControls } from './InspectorPriceControls';
 export { InspectorDividerControls } from './InspectorDividerControls';

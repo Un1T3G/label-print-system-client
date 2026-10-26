@@ -14,6 +14,10 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '@/shared/ui';
 import {
   Plus,
@@ -24,7 +28,11 @@ import {
   Maximize2,
   Sparkles,
   AlertCircle,
+  Scale,
+  Tag,
+  ChevronDown,
 } from 'lucide-react';
+import type { PrintTemplate } from '../types';
 import { toast } from 'sonner';
 
 export function AdminTemplatesPage() {
@@ -44,18 +52,38 @@ export function AdminTemplatesPage() {
     }
   };
 
-  const handleSetDefault = async (templateId: string, templateName: string) => {
+  const handleSetTargetDefault = async (
+    template: PrintTemplate,
+    target: 'piece' | 'weight'
+  ) => {
     try {
+      const updatedConfig = {
+        ...template.config,
+        targetType: target,
+        ...(target === 'piece'
+          ? { isDefaultPiece: true }
+          : { isDefaultWeight: true }),
+      };
+
       await updateMutation.mutateAsync({
-        id: templateId,
-        dto: { isDefault: true },
+        id: template.id,
+        dto: {
+          isDefault: target === 'piece' ? true : template.isDefault,
+          config: updatedConfig,
+        },
       });
-      toast.success(`Шаблон "${templateName}" установлен по умолчанию`);
+
+      toast.success(
+        `Шаблон "${template.name}" установлен основным для ${
+          target === 'piece' ? 'штучных (шт)' : 'весовых (кг)'
+        } товаров`
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка обновления';
       toast.error(msg);
     }
   };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -114,108 +142,166 @@ export function AdminTemplatesPage() {
       {/* Templates Grid */}
       {!isLoading && templates && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {templates.map((tpl) => (
-            <Card
-              key={tpl.id}
-              className={`transition-all hover:shadow-md ${
-                tpl.isDefault ? 'ring-2 ring-primary/40' : ''
-              }`}
-            >
-              <CardHeader className="p-5 pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-foreground">
-                      {tpl.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <Badge variant="secondary" className="text-xs font-mono">
-                        <Maximize2 className="size-3 mr-1 text-muted-foreground" />
-                        {tpl.widthMm} × {tpl.heightMm} мм
-                      </Badge>
-                      {tpl.isDefault && (
-                        <Badge variant="default" className="text-[10px] gap-1">
-                          <Star className="size-3 fill-current" />
-                          Основной
+          {templates.map((tpl) => {
+            const hasBothViews =
+              (Boolean(tpl.config?.pieceElements) && Boolean(tpl.config?.weightElements)) ||
+              tpl.config?.targetType === 'all';
+            const isWeight =
+              !hasBothViews &&
+              (tpl.config?.targetType === 'weight' || tpl.name.toLowerCase().includes('весов'));
+            const isPiece =
+              !hasBothViews && !isWeight;
+
+            return (
+              <Card
+                key={tpl.id}
+                className={`transition-all hover:shadow-md ${
+                  tpl.isDefault ? 'ring-2 ring-primary/40 shadow-xs' : ''
+                }`}
+              >
+                <CardHeader className="p-5 pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1.5">
+                      <CardTitle className="text-base font-semibold text-foreground">
+                        {tpl.name}
+                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="secondary" className="text-xs font-mono">
+                          <Maximize2 className="size-3 mr-1 text-muted-foreground" />
+                          {tpl.widthMm} × {tpl.heightMm} мм
                         </Badge>
-                      )}
+
+                        {/* Target badge */}
+                        {hasBothViews ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 gap-1 font-medium"
+                          >
+                            <Tag className="size-2.5" />
+                            <span>+</span>
+                            <Scale className="size-2.5" />
+                            Шт + Кг (2 в 1)
+                          </Badge>
+                        ) : isWeight ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 gap-1 font-medium"
+                          >
+                            <Scale className="size-3" />
+                            Весовой (кг)
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 gap-1 font-medium"
+                          >
+                            <Tag className="size-3" />
+                            Штучный (шт)
+                          </Badge>
+                        )}
+
+                        {/* Default Badge */}
+                        {tpl.isDefault && (
+                          <Badge variant="default" className="text-[10px] gap-1 bg-primary hover:bg-primary">
+                            <Star className="size-3 fill-current" />
+                            Основной по умолчанию
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              <CardContent className="p-5 pt-0 flex flex-col gap-4">
-                {/* Details summary */}
-                <div className="p-3 bg-muted/40 rounded-lg text-xs flex flex-col gap-1.5 text-muted-foreground border border-border">
-                  <div className="flex justify-between">
-                    <span>Магазин:</span>
-                    <strong className="text-foreground">
-                      {tpl.config?.showStoreName
-                        ? tpl.config.storeNameText || 'Включено'
-                        : 'Выключено'}
-                    </strong>
+                <CardContent className="p-5 pt-0 flex flex-col gap-4">
+                  {/* Details summary */}
+                  <div className="p-3 bg-muted/40 rounded-lg text-xs flex flex-col gap-1.5 text-muted-foreground border border-border">
+                    <div className="flex justify-between">
+                      <span>Поддержка видов:</span>
+                      <strong className="text-foreground">
+                        {hasBothViews
+                          ? 'Штучный (Штрихкод) + Весовой (PLU)'
+                          : isWeight
+                          ? 'Весовой с PLU'
+                          : 'Штучный со штрихкодом'}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Штрихкод / PLU:</span>
+                      <strong className="text-foreground">
+                        {hasBothViews ? 'Автоматически по типу товара' : isWeight ? 'Только PLU' : 'Штрихкод EAN-13/128'}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Шрифт названия / цены:</span>
+                      <strong className="text-foreground font-mono">
+                        {tpl.config?.titleFontSize || 12}pt / {tpl.config?.priceFontSize || 24}pt
+                      </strong>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Штрихкод:</span>
-                    <strong className="text-foreground">
-                      {tpl.config?.showBarcode ? 'Выводится' : 'Скрыт'}
-                    </strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Шрифт названия / цены:</span>
-                    <strong className="text-foreground font-mono">
-                      {tpl.config?.titleFontSize || 12}pt / {tpl.config?.priceFontSize || 24}pt
-                    </strong>
-                  </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-between pt-2 border-t border-border">
-                  {!tpl.isDefault ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSetDefault(tpl.id, tpl.name)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      <Star data-icon="inline-start" />
-                      Сделать основным
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-primary font-medium flex items-center gap-1">
-                      <Sparkles className="size-3.5" />
-                      По умолчанию
-                    </span>
-                  )}
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground gap-1"
+                        >
+                          <Star className="size-3.5" />
+                          <span>Основной...</span>
+                          <ChevronDown className="size-3 opacity-60" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onClick={() => handleSetTargetDefault(tpl, 'piece')}
+                          className="cursor-pointer gap-2"
+                        >
+                          <Tag className="size-3.5 text-blue-500" />
+                          <span>Основной для штучных (шт)</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleSetTargetDefault(tpl, 'weight')}
+                          className="cursor-pointer gap-2"
+                        >
+                          <Scale className="size-3.5 text-emerald-500" />
+                          <span>Основной для весовых (кг)</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-                  <div className="flex items-center gap-1">
-                    <Link href={`/admin/templates/${tpl.id}`}>
+                    <div className="flex items-center gap-1">
+                      <Link href={`/admin/templates/${tpl.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          title="Редактировать"
+                        >
+                          <Edit2 data-icon="inline-start" />
+                          Изменить
+                        </Button>
+                      </Link>
+
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-xs"
-                        title="Редактировать"
+                        size="icon-xs"
+                        onClick={() => handleDelete(tpl.id, tpl.name)}
+                        disabled={tpl.isDefault}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title={tpl.isDefault ? 'Нельзя удалить основной шаблон' : 'Удалить'}
                       >
-                        <Edit2 data-icon="inline-start" />
-                        Изменить
+                        <Trash2 />
                       </Button>
-                    </Link>
-
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => handleDelete(tpl.id, tpl.name)}
-                      disabled={tpl.isDefault}
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title={tpl.isDefault ? 'Нельзя удалить основной шаблон' : 'Удалить'}
-                    >
-                      <Trash2 />
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+
         </div>
       )}
     </div>

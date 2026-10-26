@@ -10,6 +10,7 @@ import {
   Globe,
   Split,
   Calendar,
+  Scale,
 } from 'lucide-react';
 import {
   StoreNamePreview,
@@ -18,6 +19,7 @@ import {
   OldPricePreview,
   DiscountBadgePreview,
   BarcodePreview,
+  PluCodePreview,
   QrCodePreview,
   ProductCodePreview,
   CountryPreview,
@@ -236,12 +238,15 @@ const REGISTRY: Record<LabelElementType, ElementDefinition> = {
   barcode: {
     type: 'barcode',
     label: 'Штрихкод (EAN-13 / CODE128)',
-    description: 'Штриховой код для сканеров на кассе',
+    description: 'Штриховой код для кассовых сканеров',
     icon: Barcode,
     defaultConfig: {
       barcodeType: '128',
-      barcodeHeight: 45,
+      barcodeHeight: 42,
       showBarcodeDigits: true,
+      barcodeHideOnWeight: false,
+      barcodeWidth: 2,
+      textAlign: 'center',
     },
     capabilities: {
       hasContent: false,
@@ -251,6 +256,30 @@ const REGISTRY: Record<LabelElementType, ElementDefinition> = {
       hasBarcodeSettings: true,
     },
     RenderPreview: BarcodePreview,
+  },
+  pluCode: {
+    type: 'pluCode',
+    label: 'PLU-код (Весовой товар)',
+    description: 'Крупный цифровой код для электронных весов',
+    icon: Scale,
+    defaultConfig: {
+      pluStyle: 'box',
+      pluLabel: 'PLU КОД',
+      pluLabelPosition: 'top',
+      fontSize: 14,
+      fontWeight: 'black',
+      textAlign: 'center',
+      showOnlyForWeight: true,
+      letterSpacing: 'wide',
+    },
+    capabilities: {
+      hasContent: false,
+      hasPrefixSuffix: false,
+      hasTypography: true,
+      hasStyleModifiers: false,
+      hasPluSettings: true,
+    },
+    RenderPreview: PluCodePreview,
   },
   date: {
     type: 'date',

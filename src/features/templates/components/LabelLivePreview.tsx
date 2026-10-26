@@ -23,6 +23,8 @@ interface LabelLivePreviewProps {
   product?: SampleProduct;
   showControls?: boolean;
   isInteractive?: boolean;
+  viewMode?: 'piece' | 'weight';
+  onViewModeChange?: (mode: 'piece' | 'weight') => void;
 }
 
 export function LabelLivePreview({
@@ -39,9 +41,27 @@ export function LabelLivePreview({
   product,
   showControls = true,
   isInteractive = true,
+  viewMode,
+  onViewModeChange,
 }: LabelLivePreviewProps) {
   const [zoom, setZoom] = useState(1);
-  const [sampleIndex, setSampleIndex] = useState(0);
+  const [sampleIndex, setSampleIndex] = useState(() => (viewMode === 'weight' ? 2 : 0));
+
+  useEffect(() => {
+    if (viewMode === 'weight' && sampleIndex < 2) {
+      setSampleIndex(2);
+    } else if (viewMode === 'piece' && sampleIndex >= 2) {
+      setSampleIndex(0);
+    }
+  }, [viewMode]);
+
+  const handleSampleChange = (idx: number) => {
+    setSampleIndex(idx);
+    const selected = SAMPLE_PRODUCTS[idx];
+    if (selected) {
+      onViewModeChange?.(selected.isWeight ? 'weight' : 'piece');
+    }
+  };
 
   // Dragging state on canvas
   const [isDragging, setIsDragging] = useState(false);
@@ -49,8 +69,9 @@ export function LabelLivePreview({
 
   const activeProduct = product || SAMPLE_PRODUCTS[sampleIndex];
 
-  // Active elements list
-  const activeElements = propsElements || getTemplateElements(config);
+  // Active elements list resolved based on weight vs piece
+  const isWeight = Boolean(activeProduct?.isWeight ?? (viewMode === 'weight'));
+  const activeElements = propsElements || getTemplateElements(config, isWeight);
   const sortedElements = [...activeElements].sort((a, b) => a.order - b.order);
 
   const currentDate = new Date().toLocaleDateString('ru-RU', {
@@ -106,7 +127,7 @@ export function LabelLivePreview({
       {showControls && (
         <LabelPreviewToolbar
           sampleIndex={sampleIndex}
-          onSampleChange={setSampleIndex}
+          onSampleChange={handleSampleChange}
           zoom={zoom}
           onZoomIn={() => setZoom((z) => Math.min(2.0, +(z + 0.25).toFixed(2)))}
           onZoomOut={() => setZoom((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
@@ -125,7 +146,8 @@ export function LabelLivePreview({
       >
         <div
           className={cn(
-            'relative bg-white text-black rounded-xs shadow-md overflow-hidden flex flex-col justify-between p-2 select-none box-border transition-all',
+            'relative bg-white text-black rounded-xs shadow-md flex flex-col justify-between select-none box-border transition-all',
+            isInteractive ? 'overflow-visible' : 'overflow-hidden',
             config.showBorder ? 'border-solid border-black' : 'border border-slate-300'
           )}
           style={{
@@ -133,15 +155,17 @@ export function LabelLivePreview({
             height: `${heightMm || 40}mm`,
             minWidth: `${widthMm || 58}mm`,
             minHeight: `${heightMm || 40}mm`,
+            padding: `${config.paddingY ?? 2}mm ${config.paddingX ?? 2.5}mm`,
             borderWidth: config.showBorder ? `${config.borderWidth || 1}px` : '1px',
             transform: isRotated ? 'rotate(180deg)' : undefined,
           }}
         >
           {/* Elements Stack */}
           <div className="flex-1 flex flex-col justify-between h-full w-full">
-            {sortedElements.map((el) => {
+            {sortedElements.map((el, elIndex) => {
               if (!el.visible) return null;
               const isSelected = selectedElementId === el.id;
+              const isTopElement = elIndex === 0;
 
               return (
                 <div
@@ -165,7 +189,10 @@ export function LabelLivePreview({
                   {/* Floating Action Badge when selected */}
                   {isSelected && isInteractive && (
                     <div
-                      className="absolute -top-6 left-0 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md flex items-center gap-1 z-30 pointer-events-auto"
+                      className={cn(
+                        "absolute left-0 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1 z-40 pointer-events-auto whitespace-nowrap",
+                        isTopElement && (el.offsetY || 0) <= 6 ? "top-full mt-1.5" : "-top-7 -mt-0.5"
+                      )}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Move className="w-2.5 h-2.5 cursor-grab active:cursor-grabbing" />

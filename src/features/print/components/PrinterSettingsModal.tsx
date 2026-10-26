@@ -221,8 +221,8 @@ export function PrinterSettingsModal({ isOpen, onClose }: PrinterSettingsModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
+      <DialogContent className="w-full sm:max-w-xl p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-6 py-4 pr-14 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Printer className="size-5" />

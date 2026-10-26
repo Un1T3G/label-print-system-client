@@ -22,6 +22,7 @@ export interface ElementCapabilities {
   hasTypography?: boolean;
   hasStyleModifiers?: boolean;
   hasBarcodeSettings?: boolean;
+  hasPluSettings?: boolean;
   hasQrSettings?: boolean;
   hasPriceSettings?: boolean;
   hasDividerSettings?: boolean;

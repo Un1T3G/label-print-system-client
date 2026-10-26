@@ -66,6 +66,69 @@ export function GeometryTab({
           />
         </div>
 
+        {/* Target Type Selector for Auto-routing */}
+        <div className="space-y-2 p-3 bg-muted/40 rounded-lg border border-border">
+          <Label className="text-xs font-semibold block">
+            Назначение шаблона (для автовыбора при печати):
+          </Label>
+          <ToggleGroup
+            type="single"
+            value={config.targetType || 'all'}
+            onValueChange={(val) => {
+              if (val) onConfigChange('targetType', val as 'piece' | 'weight' | 'all');
+            }}
+            size="sm"
+            variant="outline"
+            className="flex flex-wrap gap-2 justify-start"
+          >
+            <ToggleGroupItem
+              value="piece"
+              className="px-3 py-1.5 text-xs font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+            >
+              🏷️ Штучные (шт)
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="weight"
+              className="px-3 py-1.5 text-xs font-medium data-[state=on]:bg-emerald-600 data-[state=on]:text-white"
+            >
+              ⚖️ Весовые (кг)
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="all"
+              className="px-3 py-1.5 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              🌐 Универсальный
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Система будет автоматически выбирать этот шаблон при печати товаров с соответствующей единицей измерения.
+          </p>
+
+          <div className="pt-2 border-t border-border/60 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-piece" className="text-xs cursor-pointer">
+                Основной шаблон для штучных товаров (шт)
+              </Label>
+              <Switch
+                id="default-piece"
+                checked={Boolean(config.isDefaultPiece)}
+                onCheckedChange={(checked) => onConfigChange('isDefaultPiece', checked)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-weight" className="text-xs cursor-pointer">
+                Основной шаблон для весовых товаров (кг)
+              </Label>
+              <Switch
+                id="default-weight"
+                checked={Boolean(config.isDefaultWeight)}
+                onCheckedChange={(checked) => onConfigChange('isDefaultWeight', checked)}
+              />
+            </div>
+          </div>
+        </div>
+
+
         {/* Size presets */}
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold block">
@@ -125,6 +188,56 @@ export function GeometryTab({
               onChange={(e) => onHeightMmChange(Number(e.target.value))}
               required
             />
+          </div>
+        </div>
+
+        {/* Padding / Margins inside label */}
+        <div className="p-3.5 bg-muted/40 rounded-xl border border-border space-y-3">
+          <div>
+            <span className="text-xs font-semibold text-foreground block">
+              Внутренние отступы ценника (поля)
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Настройте отступы от краев этикетки, если принтер печатает слишком близко или далеко от края
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-1">
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-[11px] font-medium text-muted-foreground">По бокам (X):</span>
+                <span className="font-mono text-xs font-bold text-primary">
+                  {config.paddingX ?? 2.5} мм
+                </span>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={config.paddingX ?? 2.5}
+                onChange={(e) => onConfigChange('paddingX', Number(e.target.value))}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-[11px] font-medium text-muted-foreground">Сверху/снизу (Y):</span>
+                <span className="font-mono text-xs font-bold text-primary">
+                  {config.paddingY ?? 2.0} мм
+                </span>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={config.paddingY ?? 2.0}
+                onChange={(e) => onConfigChange('paddingY', Number(e.target.value))}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
           </div>
         </div>
 

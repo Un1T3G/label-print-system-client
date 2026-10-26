@@ -27,7 +27,8 @@ export async function getTemplatesHandler() {
     }
 
     return NextResponse.json(DEFAULT_TEMPLATES);
-  } catch {
+  } catch (error) {
+    console.error('[getTemplatesHandler] Ошибка при чтении из БД:', error);
     return NextResponse.json(DEFAULT_TEMPLATES);
   }
 }
@@ -84,7 +85,8 @@ export async function createTemplateHandler(request: Request) {
       };
 
       return NextResponse.json(formatted, { status: 201 });
-    } catch {
+    } catch (dbError) {
+      console.error('[createTemplateHandler] Ошибка сохранения шаблона в БД:', dbError);
       const fallbackTemplate: PrintTemplate = {
         id: `tpl-${Date.now()}`,
         name: body.name,

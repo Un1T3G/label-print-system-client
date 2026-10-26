@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 interface PrintCartState {
   items: PrintJobItem[];
   addItem: (product: UmagProduct, quantity?: number) => void;
+  addBatch: (newItems: PrintJobItem[]) => void;
   updateQuantity: (barcode: string, quantity: number) => void;
   removeItem: (barcode: string) => void;
   clearCart: () => void;
@@ -50,6 +51,21 @@ export const usePrintCartStore = create<PrintCartState>()(
           });
         }
       },
+      addBatch: (newItems: PrintJobItem[]) => {
+        if (!newItems.length) return;
+        const { items } = get();
+        const itemMap = new Map(items.map((i) => [i.barcode, { ...i }]));
+        for (const ni of newItems) {
+          const existing = itemMap.get(ni.barcode);
+          if (existing) {
+            existing.quantity += ni.quantity;
+          } else {
+            itemMap.set(ni.barcode, { ...ni });
+          }
+        }
+        set({ items: Array.from(itemMap.values()) });
+        toast.success(`Добавлено позиций в очередь печати: ${newItems.length}`);
+      },
       updateQuantity: (barcode, quantity) => {
         if (quantity <= 0) {
           get().removeItem(barcode);
@@ -79,6 +95,7 @@ export const usePrintCartStore = create<PrintCartState>()(
 export function usePrintCart() {
   const items = usePrintCartStore((s) => s.items);
   const addItem = usePrintCartStore((s) => s.addItem);
+  const addBatch = usePrintCartStore((s) => s.addBatch);
   const updateQuantity = usePrintCartStore((s) => s.updateQuantity);
   const removeItem = usePrintCartStore((s) => s.removeItem);
   const clearCart = usePrintCartStore((s) => s.clearCart);
@@ -87,9 +104,11 @@ export function usePrintCart() {
   return {
     items,
     addItem,
+    addBatch,
     updateQuantity,
     removeItem,
     clearCart,
     totalLabelsCount,
   };
 }
+

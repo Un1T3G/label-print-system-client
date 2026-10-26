@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   UserCheck,
   ChevronDown,
+  Truck,
 } from 'lucide-react';
 import {
   Button,
@@ -56,6 +57,13 @@ export default function DashboardLayout({
       adminOnly: false,
     },
     {
+      label: 'Приемки',
+      href: '/admin/supplies',
+      icon: Truck,
+      badge: 'Admin',
+      adminOnly: true,
+    },
+    {
       label: 'Шаблоны печати',
       href: '/admin/templates',
       icon: Sliders,
@@ -63,6 +71,7 @@ export default function DashboardLayout({
       adminOnly: true,
     },
   ];
+
 
   const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 

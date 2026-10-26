@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePrintCart } from '../model/print-cart-store';
-import { useTemplates, type PrintTemplate } from '@/features/templates';
+import { useTemplates, resolveItemTemplate, type PrintTemplate } from '@/features/templates';
 import { sendToLocalPrinter, sendPdfToLocalPrinter } from '../api/printer';
 import {
   generateLabelsPdf,
@@ -10,26 +10,36 @@ import {
   openLabelsPdfInNewTab,
   printViaBrowser,
 } from '../lib/pdf-generator';
+import type { PrintJobItem } from '../types';
 import { toast } from 'sonner';
 
 export function usePrintQueue() {
   const { items, totalLabelsCount, updateQuantity, removeItem, clearCart } = usePrintCart();
   const { data: templates, isLoading: isLoadingTemplates } = useTemplates();
 
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  // 'auto' is default for smart routing (piece vs weight), or specific template ID
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('auto');
   const [previewItemIndex, setPreviewItemIndex] = useState<number>(0);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [isTsplModalOpen, setIsTsplModalOpen] = useState(false);
 
-  // Active template resolution: user-selected -> default -> first available
-  const activeTemplate: PrintTemplate | undefined =
-    templates?.find((t) => t.id === selectedTemplateId) ||
-    templates?.find((t) => t.isDefault) ||
-    templates?.[0];
+  // Helper to resolve template for a specific item
+  const getItemTemplate = (item: PrintJobItem): PrintTemplate => {
+    return (
+      resolveItemTemplate(item, templates, selectedTemplateId) ||
+      templates?.find((t) => t.isDefault) ||
+      templates?.[0]!
+    );
+  };
 
   const previewItem = items[previewItemIndex] || items[0];
+
+  // Active template resolution for the currently selected preview item
+  const activeTemplate: PrintTemplate | undefined = previewItem
+    ? getItemTemplate(previewItem)
+    : templates?.find((t) => t.isDefault) || templates?.[0];
 
   const handlePrint = async () => {
     if (items.length === 0) {
@@ -37,26 +47,41 @@ export function usePrintQueue() {
       return;
     }
 
-    if (!activeTemplate) {
-      toast.error('Не выбран шаблон печати. Создайте или выберите шаблон.');
+    if (!templates || templates.length === 0) {
+      toast.error('Не найдены шаблоны печати.');
       return;
     }
 
     setIsPrinting(true);
 
     try {
-      const payload = {
-        template: activeTemplate,
-        items: items.map((item) => ({
-          barcode: item.barcode,
-          name: item.name,
-          price: item.price,
-          measureName: item.measureName,
-          quantity: item.quantity,
-        })),
-      };
+      // Group items by their resolved template (for smooth batch printing)
+      const groups = new Map<string, { template: PrintTemplate; items: PrintJobItem[] }>();
 
-      await sendToLocalPrinter(payload);
+      for (const item of items) {
+        const tpl = getItemTemplate(item);
+        if (!tpl) continue;
+        const existing = groups.get(tpl.id);
+        if (existing) {
+          existing.items.push(item);
+        } else {
+          groups.set(tpl.id, { template: tpl, items: [item] });
+        }
+      }
+
+      for (const group of groups.values()) {
+        const payload = {
+          template: group.template,
+          items: group.items.map((item) => ({
+            barcode: item.barcode,
+            name: item.name,
+            price: item.price,
+            measureName: item.measureName,
+            quantity: item.quantity,
+          })),
+        };
+        await sendToLocalPrinter(payload);
+      }
 
       toast.success(
         `Задание отправлено на печать: ${totalLabelsCount} ценников (${items.length} позиций)!`
@@ -87,8 +112,10 @@ export function usePrintQueue() {
     }
 
     try {
-      printViaBrowser(activeTemplate, items);
-      toast.success('Открыт системный диалог печати Windows');
+      printViaBrowser(activeTemplate, items, (item) => getItemTemplate(item));
+      toast.success('Открыт системный диалог печати Windows', {
+        description: 'Совет: выберите поля «Отсутствуют» (None) для 100% точного размера термоэтикетки.',
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка формирования печати';
       toast.error(msg);
@@ -99,7 +126,11 @@ export function usePrintQueue() {
     if (items.length === 0 || !activeTemplate) return;
     setIsGeneratingPdf(true);
     try {
-      await downloadLabelsPdf({ template: activeTemplate, items });
+      await downloadLabelsPdf({
+        template: activeTemplate,
+        items,
+        resolveTemplate: (item) => getItemTemplate(item),
+      });
       toast.success('PDF файл с ценниками успешно сгенерирован и скачан');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка создания PDF';
@@ -113,7 +144,11 @@ export function usePrintQueue() {
     if (items.length === 0 || !activeTemplate) return;
     setIsGeneratingPdf(true);
     try {
-      await openLabelsPdfInNewTab({ template: activeTemplate, items });
+      await openLabelsPdfInNewTab({
+        template: activeTemplate,
+        items,
+        resolveTemplate: (item) => getItemTemplate(item),
+      });
       toast.success('PDF открыт в новой вкладке для просмотра и печати');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка создания PDF';
@@ -136,7 +171,11 @@ export function usePrintQueue() {
     setIsSendingPdf(true);
     try {
       toast.info('Формирование PDF документа для сервиса печати...');
-      const doc = await generateLabelsPdf({ template: activeTemplate, items });
+      const doc = await generateLabelsPdf({
+        template: activeTemplate,
+        items,
+        resolveTemplate: (item) => getItemTemplate(item),
+      });
       const rawUri = doc.output('datauristring');
       const pdfBase64 = rawUri.includes('base64,') ? rawUri.split('base64,')[1] : rawUri;
 
@@ -173,6 +212,7 @@ export function usePrintQueue() {
     setPreviewItemIndex,
     activeTemplate,
     previewItem,
+    getItemTemplate,
     isPrinting,
     isGeneratingPdf,
     isSendingPdf,
@@ -185,3 +225,4 @@ export function usePrintQueue() {
     handleSendPdfToService,
   };
 }
+

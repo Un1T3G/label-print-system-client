@@ -95,9 +95,9 @@ export function TsplPreviewModal({ isOpen, onClose }: TsplPreviewModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+      <DialogContent className="w-full sm:max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30 flex-row items-center justify-between">
+        <DialogHeader className="px-6 py-4 pr-14 border-b border-border bg-muted/30 flex-row items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Terminal className="size-5" />
@@ -122,12 +122,13 @@ export function TsplPreviewModal({ isOpen, onClose }: TsplPreviewModalProps) {
             size="icon-xs"
             onClick={loadData}
             disabled={isLoading}
-            className="text-muted-foreground mr-6"
+            className="text-muted-foreground"
             title="Обновить"
           >
             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
           </Button>
         </DialogHeader>
+
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">

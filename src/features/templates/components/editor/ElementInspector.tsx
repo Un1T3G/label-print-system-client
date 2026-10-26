@@ -10,6 +10,7 @@ import {
   InspectorTypographyControls,
   InspectorStyleModifiers,
   InspectorBarcodeControls,
+  InspectorPluControls,
   InspectorQrControls,
   InspectorPriceControls,
   InspectorDividerControls,
@@ -35,6 +36,7 @@ export function ElementInspector({
         <InspectorTypographyControls element={selectedElement} onUpdate={onUpdateSelected} />
         <InspectorStyleModifiers element={selectedElement} onUpdate={onUpdateSelected} />
         <InspectorBarcodeControls element={selectedElement} onUpdate={onUpdateSelected} />
+        <InspectorPluControls element={selectedElement} onUpdate={onUpdateSelected} />
         <InspectorQrControls element={selectedElement} onUpdate={onUpdateSelected} />
         <InspectorPriceControls element={selectedElement} onUpdate={onUpdateSelected} />
         <InspectorDividerControls element={selectedElement} onUpdate={onUpdateSelected} />

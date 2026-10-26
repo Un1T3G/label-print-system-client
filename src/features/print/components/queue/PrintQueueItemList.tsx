@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { PrintJobItem } from '../../types';
+import type { PrintTemplate } from '@/features/templates';
 import {
   Button,
   Card,
@@ -11,7 +12,7 @@ import {
   CardDescription,
   Badge,
 } from '@/shared/ui';
-import { Eye, Minus, Plus, Trash2, Barcode, Check } from 'lucide-react';
+import { Eye, Minus, Plus, Trash2, Barcode, Check, Scale, Tag } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 interface PrintQueueItemListProps {
@@ -19,6 +20,7 @@ interface PrintQueueItemListProps {
   totalLabelsCount: number;
   currencySymbol?: string;
   previewItemIndex: number;
+  getItemTemplate?: (item: PrintJobItem) => PrintTemplate;
   onSelectPreviewItem: (index: number) => void;
   onUpdateQuantity: (barcode: string, qty: number) => void;
   onRemoveItem: (barcode: string) => void;
@@ -29,6 +31,7 @@ export function PrintQueueItemList({
   totalLabelsCount,
   currencySymbol = 'сум',
   previewItemIndex,
+  getItemTemplate,
   onSelectPreviewItem,
   onUpdateQuantity,
   onRemoveItem,
@@ -52,6 +55,11 @@ export function PrintQueueItemList({
           {items.map((item, index) => {
             const isSelected = previewItemIndex === index;
             const totalPrice = item.price * item.quantity;
+            const resolvedTpl = getItemTemplate?.(item);
+            const isWeight =
+              item.isWeight ||
+              item.measureName === 'кг.' ||
+              item.measureName === 'кг';
 
             return (
               <div
@@ -65,16 +73,38 @@ export function PrintQueueItemList({
               >
                 {/* Top Row: Barcode, Measure Badge and Preview Button */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
                       <Barcode className="size-3.5 text-muted-foreground shrink-0" />
                       <span className="tabular-nums">{item.barcode}</span>
                     </div>
 
-                    <Badge variant="outline" className="text-xs font-normal px-2 py-0.5">
-                      {item.measureName}
-                    </Badge>
+                    {isWeight ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 px-2 py-0.5 font-medium gap-1"
+                      >
+                        <Scale className="size-3" />
+                        <span>кг</span>
+                        {item.plu && <span className="font-mono font-bold">PLU: {item.plu}</span>}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 px-2 py-0.5 font-medium gap-1"
+                      >
+                        <Tag className="size-3" />
+                        <span>{item.measureName || 'шт.'}</span>
+                      </Badge>
+                    )}
+
+                    {resolvedTpl && (
+                      <Badge variant="secondary" className="text-[10px] text-muted-foreground font-normal px-2 py-0.5">
+                        Шаблон: {resolvedTpl.name}
+                      </Badge>
+                    )}
                   </div>
+
 
                   {isSelected ? (
                     <Badge

@@ -5,6 +5,7 @@ export type LabelElementType =
   | 'oldPrice'       // Старая цена (зачеркнутая)
   | 'discountBadge'  // Бейдж скидки / акции ("-20%", "АКЦИЯ", "ХИТ")
   | 'barcode'        // Штрихкод (CODE128, EAN-13)
+  | 'pluCode'        // PLU-код для весовых товаров (крупный номер весов)
   | 'qrcode'         // QR-код (для ссылок, оплаты, проверки)
   | 'date'           // Дата печати / фасовки
   | 'productCode'    // Артикул / код товара
@@ -37,9 +38,20 @@ export interface LabelElement {
   borderWidth?: number;
   paddingY?: number;
 
+  // Настройки штрихкода:
   barcodeType?: '128' | 'EAN13';
   barcodeHeight?: number;
   showBarcodeDigits?: boolean;
+  barcodeHideOnWeight?: boolean; // скрывать штрихкод для весовых товаров
+  barcodeWidth?: number;         // модуль ширины (1, 2, 3)
+
+  // Настройки PLU-кода (весовой товар):
+  pluStyle?: 'box' | 'badge' | 'plain' | 'underline'; // стиль рамки
+  pluLabel?: string;                                 // подпись ("PLU КОД", "PLU:", "Код весов")
+  pluLabelPosition?: 'top' | 'inline' | 'none';       // расположение подписи
+  showOnlyForWeight?: boolean;                       // показывать только если товар весовой
+  letterSpacing?: 'normal' | 'wide' | 'widest';      // межзнаковый интервал
+
   qrSize?: number;
   qrData?: string;
 
@@ -48,8 +60,23 @@ export interface LabelElement {
   oldPriceValue?: number;
 }
 
+export type TemplateTargetType = 'piece' | 'weight' | 'all';
+export type TemplateViewMode = 'piece' | 'weight';
+
 export interface PrintTemplateConfig {
+  /** Общие / резервные элементы ценника */
   elements?: LabelElement[];
+  /** Макет элементов для штучных товаров (шт) со штрихкодом */
+  pieceElements?: LabelElement[];
+  /** Макет элементов для весовых товаров (кг) с PLU-кодом весов */
+  weightElements?: LabelElement[];
+
+  /** Назначение шаблона: штучные товары (шт), весовые (кг) или универсальный (оба вида) */
+  targetType?: TemplateTargetType;
+  /** Является ли основным шаблоном для штучных товаров */
+  isDefaultPiece?: boolean;
+  /** Является ли основным шаблоном для весовых товаров */
+  isDefaultWeight?: boolean;
 
   showStoreName?: boolean;
   storeNameText?: string;
@@ -60,6 +87,7 @@ export interface PrintTemplateConfig {
   currencySymbol?: string;
   textAlign?: 'left' | 'center';
   showMeasure?: boolean;
+
 
   showBarcode?: boolean;
   barcodeType?: '128' | 'EAN13';
@@ -73,6 +101,9 @@ export interface PrintTemplateConfig {
 
   showBorder?: boolean;
   borderWidth?: number;
+
+  paddingX?: number;
+  paddingY?: number;
 
   density?: number;
   speed?: number;

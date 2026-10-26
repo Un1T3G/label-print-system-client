@@ -14,7 +14,7 @@ export const ELEMENT_PRESET_CATALOG: Array<{
 }));
 
 
-export function getDefaultElements(config?: Partial<PrintTemplateConfig>): LabelElement[] {
+export function getDefaultPieceElements(config?: Partial<PrintTemplateConfig>): LabelElement[] {
   let order = 0;
   return [
     {
@@ -67,8 +67,9 @@ export function getDefaultElements(config?: Partial<PrintTemplateConfig>): Label
       visible: config?.showBarcode !== false,
       order: order++,
       barcodeType: config?.barcodeType || '128',
-      barcodeHeight: config?.barcodeHeight || 45,
+      barcodeHeight: config?.barcodeHeight || 42,
       showBarcodeDigits: config?.showBarcodeDigits !== false,
+      barcodeHideOnWeight: false,
       offsetY: config?.barcodeOffsetY || 0,
       offsetX: 0,
     },
@@ -85,28 +86,127 @@ export function getDefaultElements(config?: Partial<PrintTemplateConfig>): Label
       offsetY: 0,
       offsetX: 0,
     },
+  ];
+}
+
+export function getDefaultWeightElements(config?: Partial<PrintTemplateConfig>): LabelElement[] {
+  let order = 0;
+  return [
     {
-      id: 'el-footer',
-      type: 'customText',
-      label: 'Подвал / Слоган',
-      visible: config?.showFooter || false,
+      id: 'el-store-name',
+      type: 'storeName',
+      label: 'Шапка магазина / отдела',
+      visible: config?.showStoreName !== false,
       order: order++,
-      content: config?.footerText || '★ ГАРАНТИЯ КАЧЕСТВА ★',
-      fontSize: 8,
-      fontWeight: 'bold',
+      content: config?.storeNameText ? `${config.storeNameText} • ВЕСОВОЙ` : 'ALPAMIS • ВЕСОВОЙ ОТДЕЛ',
+      fontSize: 8.5,
+      fontWeight: 'black',
       textAlign: 'center',
       textTransform: 'uppercase',
+      borderBottom: true,
+      offsetY: 0,
+      offsetX: 0,
+    },
+    {
+      id: 'el-product-name',
+      type: 'productName',
+      label: 'Название товара',
+      visible: true,
+      order: order++,
+      fontSize: config?.titleFontSize ? config.titleFontSize + 1 : 12,
+      fontWeight: 'black',
+      textAlign: 'left',
+      lineClamp: 2,
+      offsetY: config?.nameOffsetY || 0,
+      offsetX: 0,
+    },
+    {
+      id: 'el-price',
+      type: 'price',
+      label: 'Цена за 1 кг',
+      visible: true,
+      order: order++,
+      fontSize: config?.priceFontSize ? config.priceFontSize + 2 : 26,
+      fontWeight: 'black',
+      textAlign: 'left',
+      currencySymbol: config?.currencySymbol || 'сум',
+      showMeasure: true,
+      borderBottom: true,
+      offsetY: config?.priceOffsetY || 0,
+      offsetX: 0,
+    },
+    {
+      id: 'el-plu',
+      type: 'pluCode',
+      label: 'PLU-код для весов',
+      visible: true,
+      order: order++,
+      pluStyle: 'box',
+      pluLabel: 'КОД ДЛЯ ВЕСОВ (PLU)',
+      pluLabelPosition: 'top',
+      fontSize: 18,
+      fontWeight: 'black',
+      textAlign: 'center',
+      letterSpacing: 'wide',
+      showOnlyForWeight: false,
+      offsetY: 0,
+      offsetX: 0,
+    },
+    {
+      id: 'el-date',
+      type: 'date',
+      label: 'Дата фасовки',
+      visible: config?.showDate !== false,
+      order: order++,
+      prefix: 'Фасовка: ',
+      fontSize: 8,
+      fontWeight: 'normal',
+      textAlign: 'right',
       offsetY: 0,
       offsetX: 0,
     },
   ];
 }
 
-export function getTemplateElements(config?: Partial<PrintTemplateConfig>): LabelElement[] {
+export function getDefaultElements(config?: Partial<PrintTemplateConfig>): LabelElement[] {
+  return getDefaultPieceElements(config);
+}
+
+export function getTemplateElements(
+  config?: Partial<PrintTemplateConfig>,
+  modeOrIsWeight?: 'piece' | 'weight' | boolean
+): LabelElement[] {
+  const isWeight = modeOrIsWeight === 'weight' || modeOrIsWeight === true;
+  const isPiece = modeOrIsWeight === 'piece' || modeOrIsWeight === false;
+
+  if (isWeight) {
+    if (config?.weightElements && Array.isArray(config.weightElements) && config.weightElements.length > 0) {
+      return [...config.weightElements].sort((a, b) => a.order - b.order);
+    }
+    if (config?.elements && config.elements.some((e) => e.type === 'pluCode' && e.visible)) {
+      return [...config.elements].sort((a, b) => a.order - b.order);
+    }
+    return getDefaultWeightElements(config);
+  }
+
+  if (isPiece) {
+    if (config?.pieceElements && Array.isArray(config.pieceElements) && config.pieceElements.length > 0) {
+      return [...config.pieceElements].sort((a, b) => a.order - b.order);
+    }
+    if (config?.elements && Array.isArray(config.elements) && config.elements.length > 0) {
+      return [...config.elements].sort((a, b) => a.order - b.order);
+    }
+    return getDefaultPieceElements(config);
+  }
+
+  // Fallback when mode is not specified
+  if (config?.pieceElements && Array.isArray(config.pieceElements) && config.pieceElements.length > 0) {
+    return [...config.pieceElements].sort((a, b) => a.order - b.order);
+  }
   if (config?.elements && Array.isArray(config.elements) && config.elements.length > 0) {
     return [...config.elements].sort((a, b) => a.order - b.order);
   }
-  return getDefaultElements(config);
+  return getDefaultPieceElements(config);
 }
 
 export function syncConfigWithElements(
@@ -344,6 +444,143 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
         barcodeType: '128',
         barcodeHeight: 40,
         showBarcodeDigits: true,
+      },
+    ],
+  },
+  {
+    id: 'weight-scale',
+    name: 'Весовой товар (Крупный PLU)',
+    description: 'Оптимизирован для весовых товаров: крупный PLU в рамке, цена за кг, дата',
+    icon: 'Scale',
+    elements: () => [
+      {
+        id: `el-store-${Date.now()}`,
+        type: 'storeName',
+        label: 'Шапка магазина',
+        visible: true,
+        order: 0,
+        content: 'ВЕСОВОЙ ОТДЕЛ',
+        fontSize: 8,
+        fontWeight: 'black',
+        textAlign: 'center',
+        borderBottom: true,
+      },
+      {
+        id: `el-prod-${Date.now()}`,
+        type: 'productName',
+        label: 'Название товара',
+        visible: true,
+        order: 1,
+        fontSize: 12,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        lineClamp: 2,
+      },
+      {
+        id: `el-plu-${Date.now()}`,
+        type: 'pluCode',
+        label: 'PLU код весов',
+        visible: true,
+        order: 2,
+        pluStyle: 'box',
+        pluLabel: 'PLU КОД',
+        pluLabelPosition: 'top',
+        fontSize: 18,
+        fontWeight: 'black',
+        textAlign: 'center',
+        letterSpacing: 'wide',
+        showOnlyForWeight: false,
+      },
+      {
+        id: `el-price-${Date.now()}`,
+        type: 'price',
+        label: 'Цена за 1 кг',
+        visible: true,
+        order: 3,
+        fontSize: 24,
+        fontWeight: 'black',
+        textAlign: 'center',
+        currencySymbol: 'сум',
+        showMeasure: true,
+        borderBottom: true,
+      },
+      {
+        id: `el-date-${Date.now()}`,
+        type: 'date',
+        label: 'Дата фасовки',
+        visible: true,
+        order: 4,
+        prefix: 'Фасовка: ',
+        fontSize: 7.5,
+        textAlign: 'center',
+      },
+    ],
+  },
+  {
+    id: 'universal-barcode-plu',
+    name: 'Универсальный (Штрихкод + PLU)',
+    description: 'Полный комплект: шапка, название, цена, штрихкод и отдельный PLU для весов',
+    icon: 'Layers',
+    elements: () => [
+      {
+        id: `el-store-${Date.now()}`,
+        type: 'storeName',
+        label: 'Шапка магазина',
+        visible: true,
+        order: 0,
+        content: 'ALPAMIS SUPERMARKET',
+        fontSize: 8,
+        fontWeight: 'black',
+        textAlign: 'center',
+        borderBottom: true,
+      },
+      {
+        id: `el-prod-${Date.now()}`,
+        type: 'productName',
+        label: 'Название товара',
+        visible: true,
+        order: 1,
+        fontSize: 11,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        lineClamp: 2,
+      },
+      {
+        id: `el-price-${Date.now()}`,
+        type: 'price',
+        label: 'Цена товара',
+        visible: true,
+        order: 2,
+        fontSize: 22,
+        fontWeight: 'black',
+        textAlign: 'left',
+        currencySymbol: 'сум',
+        showMeasure: true,
+      },
+      {
+        id: `el-plu-${Date.now()}`,
+        type: 'pluCode',
+        label: 'PLU-код весов',
+        visible: true,
+        order: 3,
+        pluStyle: 'badge',
+        pluLabel: 'PLU:',
+        pluLabelPosition: 'inline',
+        fontSize: 12,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        showOnlyForWeight: true,
+      },
+      {
+        id: `el-barcode-${Date.now()}`,
+        type: 'barcode',
+        label: 'Штрихкод',
+        visible: true,
+        order: 4,
+        barcodeType: '128',
+        barcodeHeight: 34,
+        showBarcodeDigits: true,
+        barcodeHideOnWeight: false,
       },
     ],
   },

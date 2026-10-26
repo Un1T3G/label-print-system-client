@@ -22,7 +22,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     isWeight: false,
   },
   {
-    name: 'Шоколад «Казахстан» темный классический 100г Рахат',
+    name: 'Шоколад «Казахстан» темный классический 100г',
     price: 15500,
     barcode: '4870002010123',
     measureName: 'шт.',
@@ -38,6 +38,16 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     code: '33104',
     country: 'Узбекистан',
     plu: '452',
+    isWeight: true,
+  },
+  {
+    name: 'Бананы «Эквадор» сладкие экстра',
+    price: 19500,
+    barcode: '2000000100108',
+    measureName: 'кг.',
+    code: '33110',
+    country: 'Эквадор',
+    plu: '108',
     isWeight: true,
   },
 ];

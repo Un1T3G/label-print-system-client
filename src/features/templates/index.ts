@@ -14,12 +14,21 @@ export {
 
 export { DEFAULT_TEMPLATES } from './lib/default-templates';
 export {
+  resolveItemTemplate,
+  findDefaultPieceTemplate,
+  findDefaultWeightTemplate,
+  isWeightProduct,
+} from './lib/template-resolver';
+export {
   getTemplateElements,
   getDefaultElements,
+  getDefaultPieceElements,
+  getDefaultWeightElements,
   syncConfigWithElements,
   ELEMENT_PRESET_CATALOG,
   LAYOUT_PRESETS,
 } from './lib/label-elements';
+
 
 export {
   createTemplateSchema,
