@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui';
-import { ZoomIn, ZoomOut, RotateCcw, Scale, Package } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Scale, Package, Magnet, Grid3X3 } from 'lucide-react';
 import { SAMPLE_PRODUCTS } from '../../constants/sample-products';
 import { cn } from '@/shared/lib/utils';
 
@@ -13,6 +13,10 @@ interface LabelPreviewToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  smartGuides?: boolean;
+  onToggleSmartGuides?: () => void;
+  showGrid?: boolean;
+  onToggleGrid?: () => void;
 }
 
 export function LabelPreviewToolbar({
@@ -22,6 +26,10 @@ export function LabelPreviewToolbar({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  smartGuides = true,
+  onToggleSmartGuides,
+  showGrid = false,
+  onToggleGrid,
 }: LabelPreviewToolbarProps) {
   const currentProduct = SAMPLE_PRODUCTS[sampleIndex] || SAMPLE_PRODUCTS[0];
 
@@ -114,6 +122,47 @@ export function LabelPreviewToolbar({
             >
               <RotateCcw className="w-3 h-3" />
             </Button>
+          )}
+
+          {/* Alignment & Grid Helper Toggles */}
+          {(onToggleSmartGuides || onToggleGrid) && (
+            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1.5 ml-1">
+              {onToggleSmartGuides && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleSmartGuides}
+                  className={cn(
+                    'h-6 w-6 p-0 transition-colors rounded-md',
+                    smartGuides
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 font-bold ring-1 ring-rose-300 dark:ring-rose-800'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  )}
+                  title={smartGuides ? 'Умные направляющие (Photoshop): ВКЛ' : 'Умные направляющие: ВЫКЛ'}
+                >
+                  <Magnet className="w-3.5 h-3.5" />
+                </Button>
+              )}
+
+              {onToggleGrid && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleGrid}
+                  className={cn(
+                    'h-6 w-6 p-0 transition-colors rounded-md',
+                    showGrid
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 font-bold ring-1 ring-blue-300 dark:ring-blue-800'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  )}
+                  title={showGrid ? 'Сетка холста: ВКЛ' : 'Сетка холста: ВЫКЛ'}
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

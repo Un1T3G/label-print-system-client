@@ -65,6 +65,8 @@ export function TemplateEditorForm({
     handleReorder,
     handleToggleVisibility,
     handleMoveElement,
+    handleSetElementOffset,
+    handleAlignElement,
     handleUpdateSelected,
     handleAddElement,
     handleDuplicateElement,
@@ -231,6 +233,8 @@ export function TemplateEditorForm({
                     }
                   }}
                   onMoveElement={handleMoveElement}
+                  onSetElementOffset={handleSetElementOffset}
+                  onAlignElement={handleAlignElement}
                   onReorderElement={handleReorder}
                   onToggleElementVisibility={handleToggleVisibility}
                   onDeleteElement={handleDeleteElement}

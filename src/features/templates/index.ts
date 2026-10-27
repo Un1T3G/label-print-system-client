@@ -18,6 +18,7 @@ export {
   findDefaultPieceTemplate,
   findDefaultWeightTemplate,
   isWeightProduct,
+  extractPluCode,
 } from './lib/template-resolver';
 export {
   getTemplateElements,

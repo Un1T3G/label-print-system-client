@@ -71,8 +71,72 @@ export function InspectorOffsetControls({ element, onUpdate }: ElementInspectorP
           />
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        💡 Подсказка: Вы также можете перетаскивать элемент мышкой прямо на интерактивном превью справа!
+      {/* Быстрое выравнивание (Alignment Helper) */}
+      <div className="pt-2 border-t border-border/60 space-y-1.5">
+        <span className="text-[11px] font-medium text-muted-foreground block">
+          Быстрое выравнивание (как в Illustrator):
+        </span>
+        <div className="grid grid-cols-4 gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onUpdate('offsetX', 0);
+              onUpdate('textAlign', 'left');
+            }}
+            className="h-7 text-[11px] px-1.5 gap-1 justify-center border-border hover:bg-muted"
+            title="Прижать к левому краю (X: 0)"
+          >
+            <span>Влево</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onUpdate('offsetX', 0);
+              onUpdate('textAlign', 'center');
+            }}
+            className="h-7 text-[11px] px-1.5 gap-1 justify-center border-border hover:bg-muted font-semibold text-primary"
+            title="Выровнять строго по центру (X: 0)"
+          >
+            <span>Центр</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onUpdate('offsetX', 0);
+              onUpdate('textAlign', 'right');
+            }}
+            className="h-7 text-[11px] px-1.5 gap-1 justify-center border-border hover:bg-muted"
+            title="Прижать к правому краю (X: 0)"
+          >
+            <span>Вправо</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onUpdate('offsetX', 0);
+              onUpdate('offsetY', 0);
+            }}
+            className="h-7 text-[11px] px-1.5 gap-1 justify-center border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Сбросить все смещения в (0, 0)"
+          >
+            <span>(0, 0)</span>
+          </Button>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        💡 При перетаскивании мышкой на холсте работают <strong>умные направляющие</strong> с магнитной привязкой к центру и краям (как в Photoshop).
       </p>
     </div>
   );

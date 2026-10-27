@@ -78,6 +78,8 @@ export function usePrintQueue() {
             price: item.price,
             measureName: item.measureName,
             quantity: item.quantity,
+            plu: item.plu,
+            isWeight: item.isWeight,
           })),
         };
         await sendToLocalPrinter(payload);

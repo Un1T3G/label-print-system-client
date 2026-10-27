@@ -15,6 +15,7 @@ import {
 } from '@/shared/ui';
 import { Layers, Barcode, Plus, Minus, Trash2, Scale, Copy, Check, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { isWeightProduct } from '@/features/templates';
 
 interface ProductCardProps {
   product: UmagProduct;
@@ -33,11 +34,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const isWeight =
-    product.type === 1 ||
-    product.measureName?.toLowerCase().includes('кг') ||
-    product.name?.toLowerCase().includes(' кг') ||
-    product.fullName?.toLowerCase().includes(' кг');
+  const isWeight = isWeightProduct(product);
 
   const aliases = product.aliasList || [];
   const hasMultipleAliases = aliases.length > 1;

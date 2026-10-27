@@ -6,6 +6,8 @@ import type { ElementRenderProps } from '../../../model/element-registry-types';
 import { cn } from '@/shared/lib/utils';
 import { QrCodeSvg } from '../QrCodeSvg';
 
+import { isWeightProduct } from '../../../lib/template-resolver';
+
 export function StoreNamePreview({ element: el, config }: ElementRenderProps) {
   return (
     <div
@@ -188,8 +190,9 @@ export function BarcodePreview({ element: el, activeProduct }: ElementRenderProp
 }
 
 export function PluCodePreview({ element: el, activeProduct }: ElementRenderProps) {
-  const isWeight = activeProduct.isWeight || activeProduct.measureName?.toLowerCase().includes('кг');
-  const plu = activeProduct.plu || (isWeight ? '452' : '452');
+  const isWeight = isWeightProduct(activeProduct);
+  const rawPlu = activeProduct.plu || (activeProduct as any).aliasList?.[0] || (isWeight ? activeProduct.barcode || '452' : '452');
+  const plu = String(rawPlu);
   const showOnlyForWeight = el.showOnlyForWeight !== false;
 
   if (showOnlyForWeight && !isWeight && !activeProduct.plu) {

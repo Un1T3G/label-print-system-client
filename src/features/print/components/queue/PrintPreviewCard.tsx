@@ -21,7 +21,7 @@ import {
 } from '@/shared/ui';
 import { Sliders, Eye, Terminal, Sparkles } from 'lucide-react';
 
-import { LabelLivePreview } from '@/features/templates';
+import { LabelLivePreview, isWeightProduct } from '@/features/templates';
 
 interface PrintPreviewCardProps {
   templates?: PrintTemplate[];
@@ -184,7 +184,7 @@ export function PrintPreviewCard({
                         barcode: previewItem.barcode,
                         measureName: previewItem.measureName,
                         plu: previewItem.plu,
-                        isWeight: previewItem.isWeight,
+                        isWeight: isWeightProduct(previewItem),
                       }
                     : undefined
                 }

@@ -145,9 +145,47 @@ export function useTemplateEditor({
       if (el.id === id) {
         return {
           ...el,
-          offsetX: Math.max(-50, Math.min(50, (el.offsetX || 0) + deltaX)),
-          offsetY: Math.max(-50, Math.min(50, (el.offsetY || 0) + deltaY)),
+          offsetX: Math.max(-80, Math.min(80, (el.offsetX || 0) + deltaX)),
+          offsetY: Math.max(-80, Math.min(80, (el.offsetY || 0) + deltaY)),
         };
+      }
+      return el;
+    });
+    updateElements(updated);
+  };
+
+  const handleSetElementOffset = (id: string, offsetX: number, offsetY: number) => {
+    const updated = elements.map((el) => {
+      if (el.id === id) {
+        return {
+          ...el,
+          offsetX: Math.max(-80, Math.min(80, Math.round(offsetX))),
+          offsetY: Math.max(-80, Math.min(80, Math.round(offsetY))),
+        };
+      }
+      return el;
+    });
+    updateElements(updated);
+  };
+
+  const handleAlignElement = (id: string, align: 'left' | 'center' | 'right' | 'middle' | 'reset') => {
+    const updated = elements.map((el) => {
+      if (el.id === id) {
+        if (align === 'left') {
+          return { ...el, offsetX: 0, textAlign: 'left' as const };
+        }
+        if (align === 'center') {
+          return { ...el, offsetX: 0, textAlign: 'center' as const };
+        }
+        if (align === 'right') {
+          return { ...el, offsetX: 0, textAlign: 'right' as const };
+        }
+        if (align === 'middle') {
+          return { ...el, offsetY: 0 };
+        }
+        if (align === 'reset') {
+          return { ...el, offsetX: 0, offsetY: 0 };
+        }
       }
       return el;
     });
@@ -318,6 +356,8 @@ export function useTemplateEditor({
     handleReorder,
     handleToggleVisibility,
     handleMoveElement,
+    handleSetElementOffset,
+    handleAlignElement,
     handleUpdateSelected,
     handleAddElement,
     handleDuplicateElement,

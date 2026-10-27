@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useSupplyDetailsQuery } from '../hooks/use-supplies';
 import { usePrintCart } from '@/features/print';
+import { isWeightProduct, extractPluCode } from '@/features/templates';
 import type { PrintJobItem } from '@/shared/api';
 import type { UmagSupplyProductItem } from '../types';
 import { toast } from 'sonner';
@@ -82,7 +83,17 @@ export function SupplyDetailsModal({
       p.product?.fullName ||
       'Товар без названия';
 
-    const isWeight = p.product?.type === 1 || p.product?.measure === 1;
+    const isWeight = isWeightProduct({
+      type: p.product?.type ?? p.type,
+      isWeight: p.product?.type === 1 || p.product?.measure === 1 || p.type === 1,
+      name: productName,
+      fullName: p.product?.fullName || undefined,
+    });
+    const plu = extractPluCode({
+      plu: (p.product as any)?.plu,
+      aliasList: (p.product as any)?.aliasList,
+      aliases: (p.product as any)?.aliases,
+    });
 
     return {
       barcode: String(p.barcode),
@@ -90,6 +101,7 @@ export function SupplyDetailsModal({
       price: effectivePrice,
       measureName: isWeight ? 'кг.' : 'шт.',
       quantity: Math.max(1, Math.round(quantity)),
+      plu,
       isWeight,
     };
   };
@@ -120,7 +132,7 @@ export function SupplyDetailsModal({
       arrivalCost: p.arrivalCost || p.price || 0,
       sellingPrice: item.price,
       wholesalePrice: item.price,
-      aliasList: [],
+      aliasList: (p.product as any)?.aliasList || [],
     }, 1);
 
     setAddedBarcodes((prev) => new Set(prev).add(String(p.barcode)));

@@ -177,11 +177,13 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         }
 
         case 'pluCode': {
-          if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+          if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
             return '';
           }
 
-          const pluVal = escapeHtml(item.plu || (item.isWeight ? '452' : '452'));
+          const rawPlu = item.plu || (isWeight ? item.barcode : '');
+          if (!rawPlu) return '';
+          const pluVal = escapeHtml(String(rawPlu));
           const pluStyle = el.pluStyle || 'box';
           const labelText = escapeHtml(el.pluLabel ?? 'PLU КОД');
           const labelPos = el.pluLabelPosition || 'top';
@@ -408,9 +410,11 @@ export function drawLabelOnCanvas(
         break;
       }
       case 'pluCode': {
-        if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+        if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
           break;
         }
+        const rawPlu = item.plu || (isWeight ? item.barcode : '');
+        if (!rawPlu) break;
         const fontSizePx = Math.round((el.fontSize || 14) * (scale / 2.83));
         const labelH =
           el.pluLabelPosition === 'top' && (el.pluLabel ?? 'PLU КОД')
@@ -724,11 +728,13 @@ export function drawLabelOnCanvas(
       }
 
       case 'pluCode': {
-        if (el.showOnlyForWeight !== false && !item.isWeight && !item.plu) {
+        if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
           break;
         }
 
-        const plu = String(item.plu || (item.isWeight ? '452' : '452'));
+        const rawPlu = item.plu || (isWeight ? item.barcode : '');
+        if (!rawPlu) break;
+        const plu = String(rawPlu);
         const pluStyle = el.pluStyle || 'box';
         const labelText = el.pluLabel ?? 'PLU КОД';
         const labelPos = el.pluLabelPosition || 'top';

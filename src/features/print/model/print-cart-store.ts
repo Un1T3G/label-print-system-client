@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UmagProduct } from '@/features/products';
+import { isWeightProduct, extractPluCode } from '@/features/templates';
 import type { PrintJobItem } from '../types';
 import { toast } from 'sonner';
 
@@ -23,13 +24,21 @@ export const usePrintCartStore = create<PrintCartState>()(
         const barcodeStr = String(product.barcode);
         const { items } = get();
         const existing = items.find((item) => item.barcode === barcodeStr);
+        const isWeight = isWeightProduct(product);
+        const plu = extractPluCode(product);
 
         if (existing) {
-          // Silently increment — no toast spam
+          // Silently increment — no toast spam, but ensure plu/isWeight/price are updated if missing
           set({
             items: items.map((item) =>
               item.barcode === barcodeStr
-                ? { ...item, quantity: item.quantity + quantity }
+                ? {
+                    ...item,
+                    quantity: item.quantity + quantity,
+                    plu: item.plu || plu,
+                    isWeight: item.isWeight !== undefined ? item.isWeight : isWeight,
+                    price: product.wholesalePrice || item.price,
+                  }
                 : item
             ),
           });
@@ -42,10 +51,10 @@ export const usePrintCartStore = create<PrintCartState>()(
                 barcode: barcodeStr,
                 name: product.name,
                 price: product.wholesalePrice,
-                measureName: product.measureName || (product.type === 1 ? 'кг.' : 'шт.'),
+                measureName: product.measureName || (isWeight ? 'кг.' : 'шт.'),
                 quantity,
-                plu: product.aliasList?.[0],
-                isWeight: product.type === 1,
+                plu,
+                isWeight,
               },
             ],
           });
@@ -59,6 +68,8 @@ export const usePrintCartStore = create<PrintCartState>()(
           const existing = itemMap.get(ni.barcode);
           if (existing) {
             existing.quantity += ni.quantity;
+            if (!existing.plu && ni.plu) existing.plu = ni.plu;
+            if (existing.isWeight === undefined && ni.isWeight !== undefined) existing.isWeight = ni.isWeight;
           } else {
             itemMap.set(ni.barcode, { ...ni });
           }

@@ -2,7 +2,10 @@ import type { PrintTemplate } from '../types';
 
 export interface ItemTypeIdentifiable {
   isWeight?: boolean;
+  type?: number;
   measureName?: string;
+  name?: string;
+  fullName?: string;
 }
 
 /**
@@ -10,8 +13,35 @@ export interface ItemTypeIdentifiable {
  */
 export function isWeightProduct(item: ItemTypeIdentifiable): boolean {
   if (item.isWeight === true) return true;
+  if (item.type === 1) return true;
   const measure = (item.measureName || '').trim().toLowerCase();
-  return measure === 'кг.' || measure === 'кг' || measure === 'kg' || measure === 'kg.';
+  if (measure === 'кг.' || measure === 'кг' || measure === 'kg' || measure === 'kg.' || measure.includes('кг')) return true;
+  if (item.name && (item.name.toLowerCase().includes(' кг') || item.name.toLowerCase().endsWith('кг'))) return true;
+  if (item.fullName && (item.fullName.toLowerCase().includes(' кг') || item.fullName.toLowerCase().endsWith('кг'))) return true;
+  return false;
+}
+
+/**
+ * Извлекает PLU-код из товара или позиции печати.
+ * В Umag PLU хранится в aliasList[0] или строке aliases.
+ */
+export function extractPluCode(item: {
+  plu?: string;
+  aliasList?: string[];
+  aliases?: string;
+}): string | undefined {
+  if (item.plu && String(item.plu).trim()) {
+    return String(item.plu).trim();
+  }
+  if (item.aliasList && item.aliasList.length > 0 && item.aliasList[0]) {
+    const val = String(item.aliasList[0]).trim();
+    if (val) return val;
+  }
+  if (item.aliases && typeof item.aliases === 'string') {
+    const first = item.aliases.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  return undefined;
 }
 
 /**

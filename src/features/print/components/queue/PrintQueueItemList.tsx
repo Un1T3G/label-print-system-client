@@ -3,6 +3,7 @@
 import React from 'react';
 import type { PrintJobItem } from '../../types';
 import type { PrintTemplate } from '@/features/templates';
+import { isWeightProduct } from '@/features/templates';
 import {
   Button,
   Card,
@@ -56,10 +57,7 @@ export function PrintQueueItemList({
             const isSelected = previewItemIndex === index;
             const totalPrice = item.price * item.quantity;
             const resolvedTpl = getItemTemplate?.(item);
-            const isWeight =
-              item.isWeight ||
-              item.measureName === 'кг.' ||
-              item.measureName === 'кг';
+            const isWeight = isWeightProduct(item);
 
             return (
               <div
