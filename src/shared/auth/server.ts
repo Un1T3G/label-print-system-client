@@ -7,6 +7,13 @@ export const SESSION_COOKIE_NAME = 'label_auth_session';
 const JWT_SECRET_STRING = process.env.JWT_SECRET || 'default-label-system-secret-key-at-least-32-chars-long';
 const SECRET_KEY = new TextEncoder().encode(JWT_SECRET_STRING);
 
+export const DEFAULT_CONSULTANT_USER: SessionUser = {
+  id: 'user-consultant-1',
+  login: 'consultant',
+  name: 'Продавец-консультант',
+  role: 'CONSULTANT',
+};
+
 export const PRESET_USERS: Array<SessionUser & { passwordHash: string }> = [
   {
     id: 'user-admin-1',
@@ -16,10 +23,7 @@ export const PRESET_USERS: Array<SessionUser & { passwordHash: string }> = [
     passwordHash: 'admin123',
   },
   {
-    id: 'user-consultant-1',
-    login: 'consultant',
-    name: 'Продавец-консультант',
-    role: 'CONSULTANT',
+    ...DEFAULT_CONSULTANT_USER,
     passwordHash: 'consultant123',
   },
 ];

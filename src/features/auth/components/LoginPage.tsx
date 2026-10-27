@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../model/auth-store';
@@ -21,13 +21,15 @@ import {
   Separator,
   ThemeToggle,
 } from '@/shared/ui';
-import { Store, ShieldCheck, User, LogIn, Sparkles, Loader2 } from 'lucide-react';
+import { Store, ShieldCheck, User, LogIn, Sparkles, Loader2, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isAdminRequested = searchParams.get('admin') === '1' || searchParams.get('admin') === 'true' || searchParams.get('role') === 'admin';
 
   const {
     register,
@@ -38,11 +40,18 @@ export function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      login: '',
-      password: '',
+      login: isAdminRequested ? 'admin' : '',
+      password: isAdminRequested ? 'admin123' : '',
     },
     mode: 'onTouched',
   });
+
+  useEffect(() => {
+    if (isAdminRequested) {
+      setValue('login', 'admin', { shouldValidate: true });
+      setValue('password', 'admin123', { shouldValidate: true });
+    }
+  }, [isAdminRequested, setValue]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
@@ -51,7 +60,11 @@ export function LoginPage() {
       const data = await authService.login(values);
       login(data.user);
       toast.success(`Добро пожаловать, ${data.user.name}!`);
-      router.push('/products');
+      if (data.user.role === 'ADMIN') {
+        router.push('/admin/templates');
+      } else {
+        router.push('/products');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Неверные учетные данные';
       setServerError(msg);
@@ -92,12 +105,22 @@ export function LoginPage() {
 
         <Card className="shadow-lg backdrop-blur-sm">
           <CardHeader className="gap-1 pb-4">
-            <CardTitle className="text-xl">Авторизация</CardTitle>
+            <CardTitle className="text-xl">
+              {isAdminRequested ? 'Вход администратора' : 'Авторизация'}
+            </CardTitle>
             <CardDescription>
-              Войдите в систему под своей рабочей учетной записью
+              {isAdminRequested
+                ? 'Вход в панель управления через консоль разработчика (F12)'
+                : 'Войдите в систему под своей рабочей учетной записью'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            {isAdminRequested && (
+              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2 font-medium">
+                <Terminal className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>Режим входа администратора. Нажмите «Войти в систему» для подтверждения.</span>
+              </div>
+            )}
             {serverError && (
               <Alert variant="destructive">
                 <AlertDescription>{serverError}</AlertDescription>

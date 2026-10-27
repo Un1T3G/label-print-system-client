@@ -208,11 +208,14 @@ export default function DashboardLayout({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
-                      onClick={logout}
+                      onClick={async () => {
+                        await logout();
+                        window.location.href = '/products';
+                      }}
                       className="cursor-pointer"
                     >
                       <LogOut data-icon="inline-start" />
-                      Выйти из системы
+                      {isAdmin ? 'Выйти в режим консультанта' : 'Обновить сессию'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

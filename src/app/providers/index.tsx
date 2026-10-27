@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { QueryProvider } from './query-provider';
-import { useAuthStore } from '@/features/auth';
+import { useAuthStore, DevToolsAuthHelper } from '@/features/auth';
 import { Toaster, TooltipProvider } from '@/shared/ui';
 
 function ThemedToaster() {
@@ -21,6 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryProvider>
       <TooltipProvider delayDuration={200}>
         <AuthInitializer />
+        <DevToolsAuthHelper />
         {children}
         <ThemedToaster />
       </TooltipProvider>

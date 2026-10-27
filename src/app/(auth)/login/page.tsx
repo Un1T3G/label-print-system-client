@@ -1,1 +1,11 @@
-export { LoginPage as default } from '@/features/auth';
+import React, { Suspense } from 'react';
+import { LoginPage } from '@/features/auth';
+
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
