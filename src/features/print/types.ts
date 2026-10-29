@@ -10,6 +10,8 @@ export interface PrintJobItem {
   code?: string;
   /** PLU-код весового товара (aliasList[0] из Umag) */
   plu?: string;
+  /** Список алиасов товара (первый элемент — PLU код для весовых товаров) */
+  aliasList?: string[];
   /** true если товар весовой (type === 1) */
   isWeight?: boolean;
 }

@@ -30,8 +30,10 @@ export interface PrintJobItem {
   price: number;
   measureName: string;
   quantity: number;
-  /** PLU-код весового товара */
+  /** PLU-код весового товара (aliasList[0]) */
   plu?: string;
+  /** Список алиасов товара (первый элемент — PLU код для весовых товаров) */
+  aliasList?: string[];
   /** true если товар весовой (type === 1) */
   isWeight?: boolean;
 }

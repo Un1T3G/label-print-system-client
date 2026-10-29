@@ -177,11 +177,10 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
         }
 
         case 'pluCode': {
-          if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
+          const rawPlu = item.aliasList?.[0] || item.plu || '';
+          if (el.showOnlyForWeight !== false && !isWeight && !rawPlu) {
             return '';
           }
-
-          const rawPlu = item.plu || (isWeight ? item.barcode : '');
           if (!rawPlu) return '';
           const pluVal = escapeHtml(String(rawPlu));
           const pluStyle = el.pluStyle || 'box';
@@ -410,10 +409,10 @@ export function drawLabelOnCanvas(
         break;
       }
       case 'pluCode': {
-        if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
+        const rawPlu = item.aliasList?.[0] || item.plu || '';
+        if (el.showOnlyForWeight !== false && !isWeight && !rawPlu) {
           break;
         }
-        const rawPlu = item.plu || (isWeight ? item.barcode : '');
         if (!rawPlu) break;
         const fontSizePx = Math.round((el.fontSize || 14) * (scale / 2.83));
         const labelH =
@@ -728,11 +727,10 @@ export function drawLabelOnCanvas(
       }
 
       case 'pluCode': {
-        if (el.showOnlyForWeight !== false && !isWeight && !item.plu) {
+        const rawPlu = item.aliasList?.[0] || item.plu || '';
+        if (el.showOnlyForWeight !== false && !isWeight && !rawPlu) {
           break;
         }
-
-        const rawPlu = item.plu || (isWeight ? item.barcode : '');
         if (!rawPlu) break;
         const plu = String(rawPlu);
         const pluStyle = el.pluStyle || 'box';

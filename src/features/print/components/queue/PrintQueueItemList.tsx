@@ -84,7 +84,11 @@ export function PrintQueueItemList({
                       >
                         <Scale className="size-3" />
                         <span>кг</span>
-                        {item.plu && <span className="font-mono font-bold">PLU: {item.plu}</span>}
+                        {(item.aliasList?.[0] || item.plu) && (
+                          <span className="font-mono font-bold">
+                            PLU: {item.aliasList?.[0] || item.plu}
+                          </span>
+                        )}
                       </Badge>
                     ) : (
                       <Badge

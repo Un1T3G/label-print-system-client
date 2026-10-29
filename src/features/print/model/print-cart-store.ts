@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UmagProduct } from '@/features/products';
-import { isWeightProduct, extractPluCode } from '@/features/templates';
+import { isWeightProduct } from '@/features/templates';
 import type { PrintJobItem } from '../types';
 import { toast } from 'sonner';
 
@@ -25,17 +25,19 @@ export const usePrintCartStore = create<PrintCartState>()(
         const { items } = get();
         const existing = items.find((item) => item.barcode === barcodeStr);
         const isWeight = isWeightProduct(product);
-        const plu = extractPluCode(product);
+        // PLU код весового товара — это просто первый элемент массива алиасов
+        const plu = product.aliasList?.[0] || '';
 
         if (existing) {
-          // Silently increment — no toast spam, but ensure plu/isWeight/price are updated if missing
+          // Silently increment — no toast spam, but ensure plu/aliasList/isWeight/price are updated if missing
           set({
             items: items.map((item) =>
               item.barcode === barcodeStr
                 ? {
                     ...item,
                     quantity: item.quantity + quantity,
-                    plu: item.plu || plu,
+                    plu: product.aliasList?.[0] || item.plu || plu || '',
+                    aliasList: product.aliasList || item.aliasList,
                     isWeight: item.isWeight !== undefined ? item.isWeight : isWeight,
                     price: product.wholesalePrice || item.price,
                   }
@@ -54,6 +56,7 @@ export const usePrintCartStore = create<PrintCartState>()(
                 measureName: product.measureName || (isWeight ? 'кг.' : 'шт.'),
                 quantity,
                 plu,
+                aliasList: product.aliasList,
                 isWeight,
               },
             ],
@@ -66,12 +69,17 @@ export const usePrintCartStore = create<PrintCartState>()(
         const itemMap = new Map(items.map((i) => [i.barcode, { ...i }]));
         for (const ni of newItems) {
           const existing = itemMap.get(ni.barcode);
+          const itemPlu = ni.aliasList?.[0] || ni.plu || '';
           if (existing) {
             existing.quantity += ni.quantity;
-            if (!existing.plu && ni.plu) existing.plu = ni.plu;
+            if (itemPlu) existing.plu = itemPlu;
+            if (ni.aliasList) existing.aliasList = ni.aliasList;
             if (existing.isWeight === undefined && ni.isWeight !== undefined) existing.isWeight = ni.isWeight;
           } else {
-            itemMap.set(ni.barcode, { ...ni });
+            itemMap.set(ni.barcode, {
+              ...ni,
+              plu: itemPlu,
+            });
           }
         }
         set({ items: Array.from(itemMap.values()) });

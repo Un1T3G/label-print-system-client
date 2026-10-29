@@ -191,11 +191,11 @@ export function BarcodePreview({ element: el, activeProduct }: ElementRenderProp
 
 export function PluCodePreview({ element: el, activeProduct }: ElementRenderProps) {
   const isWeight = isWeightProduct(activeProduct);
-  const rawPlu = activeProduct.plu || (activeProduct as any).aliasList?.[0] || (isWeight ? activeProduct.barcode || '452' : '452');
+  const rawPlu = (activeProduct as any).aliasList?.[0] || activeProduct.plu || '';
   const plu = String(rawPlu);
   const showOnlyForWeight = el.showOnlyForWeight !== false;
 
-  if (showOnlyForWeight && !isWeight && !activeProduct.plu) {
+  if (showOnlyForWeight && !isWeight && !plu) {
     return (
       <div className="w-full flex items-center justify-center my-0.5 py-1 px-2 border border-dashed border-amber-300 bg-amber-50/50 rounded text-[9px] text-amber-600 font-mono">
         PLU: скрыт (товар штучный, отображается для весовых)

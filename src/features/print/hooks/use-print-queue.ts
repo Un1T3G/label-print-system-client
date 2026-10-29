@@ -78,7 +78,8 @@ export function usePrintQueue() {
             price: item.price,
             measureName: item.measureName,
             quantity: item.quantity,
-            plu: item.plu,
+            plu: item.aliasList?.[0] || item.plu,
+            aliasList: item.aliasList,
             isWeight: item.isWeight,
           })),
         };

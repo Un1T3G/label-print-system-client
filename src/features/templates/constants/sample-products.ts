@@ -7,6 +7,7 @@ export interface SampleProduct {
   country?: string;
   /** PLU-код для весовых товаров */
   plu?: string;
+  aliasList?: string[];
   /** true если товар весовой */
   isWeight?: boolean;
 }
@@ -20,6 +21,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     code: '10452',
     country: 'Россия',
     isWeight: false,
+    aliasList: [],
   },
   {
     name: 'Шоколад «Казахстан» темный классический 100г',
@@ -29,6 +31,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     code: '20891',
     country: 'Казахстан',
     isWeight: false,
+    aliasList: [],
   },
   {
     name: 'Яблоки «Апорт» свежие отборные премиум',
@@ -38,6 +41,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     code: '33104',
     country: 'Узбекистан',
     plu: '452',
+    aliasList: ['452'],
     isWeight: true,
   },
   {
@@ -48,6 +52,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     code: '33110',
     country: 'Эквадор',
     plu: '108',
+    aliasList: ['108'],
     isWeight: true,
   },
 ];

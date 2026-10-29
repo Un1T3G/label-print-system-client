@@ -183,7 +183,8 @@ export function PrintPreviewCard({
                         price: previewItem.price,
                         barcode: previewItem.barcode,
                         measureName: previewItem.measureName,
-                        plu: previewItem.plu,
+                        plu: previewItem.aliasList?.[0] || previewItem.plu,
+                        aliasList: previewItem.aliasList,
                         isWeight: isWeightProduct(previewItem),
                       }
                     : undefined

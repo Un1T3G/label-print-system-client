@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useSupplyDetailsQuery } from '../hooks/use-supplies';
 import { usePrintCart } from '@/features/print';
-import { isWeightProduct, extractPluCode } from '@/features/templates';
+import { isWeightProduct } from '@/features/templates';
 import type { PrintJobItem } from '@/shared/api';
 import type { UmagSupplyProductItem } from '../types';
 import { toast } from 'sonner';
@@ -89,11 +89,8 @@ export function SupplyDetailsModal({
       name: productName,
       fullName: p.product?.fullName || undefined,
     });
-    const plu = extractPluCode({
-      plu: (p.product as any)?.plu,
-      aliasList: (p.product as any)?.aliasList,
-      aliases: (p.product as any)?.aliases,
-    });
+    const aliasList = (p.product as any)?.aliasList || [];
+    const plu = aliasList[0] || (p.product as any)?.plu || '';
 
     return {
       barcode: String(p.barcode),
@@ -102,6 +99,7 @@ export function SupplyDetailsModal({
       measureName: isWeight ? 'кг.' : 'шт.',
       quantity: Math.max(1, Math.round(quantity)),
       plu,
+      aliasList,
       isWeight,
     };
   };

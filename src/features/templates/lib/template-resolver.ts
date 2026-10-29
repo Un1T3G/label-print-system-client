@@ -22,26 +22,21 @@ export function isWeightProduct(item: ItemTypeIdentifiable): boolean {
 }
 
 /**
- * Извлекает PLU-код из товара или позиции печати.
- * В Umag PLU хранится в aliasList[0] или строке aliases.
+ * Извлекает PLU-код товара.
+ * В Umag PLU весового товара — это просто первый элемент массива алиасов: aliasList[0].
  */
 export function extractPluCode(item: {
   plu?: string;
   aliasList?: string[];
-  aliases?: string;
-}): string | undefined {
-  if (item.plu && String(item.plu).trim()) {
-    return String(item.plu).trim();
-  }
+  aliases?: string[] | string;
+}): string {
   if (item.aliasList && item.aliasList.length > 0 && item.aliasList[0]) {
-    const val = String(item.aliasList[0]).trim();
-    if (val) return val;
+    return String(item.aliasList[0]).trim();
   }
-  if (item.aliases && typeof item.aliases === 'string') {
-    const first = item.aliases.split(',')[0]?.trim();
-    if (first) return first;
+  if (Array.isArray(item.aliases) && item.aliases.length > 0 && item.aliases[0]) {
+    return String(item.aliases[0]).trim();
   }
-  return undefined;
+  return item.plu ? String(item.plu).trim() : '';
 }
 
 /**
