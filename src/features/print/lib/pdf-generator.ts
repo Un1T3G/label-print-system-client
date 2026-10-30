@@ -71,7 +71,8 @@ export function renderLabelHtml(template: PrintTemplate, item: PrintJobItem): st
           const fontSize = el.fontSize || template.config.priceFontSize || 24;
           const align = el.textAlign || 'left';
           const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'space-between';
-          const priceFormatted = item.price.toLocaleString('ru-RU');
+          const priceNum = typeof item.price === 'number' ? item.price : Number(item.price) || 0;
+          const priceFormatted = priceNum.toLocaleString('ru-RU');
           const currency = (el.currencySymbol || template.config.currencySymbol || 'сум').toUpperCase();
           const borderStyle = el.borderBottom ? 'border-top: 1px solid rgba(0,0,0,0.25); border-bottom: 1px solid rgba(0,0,0,0.25); padding: 2px 0;' : '';
 
@@ -402,9 +403,13 @@ export function drawLabelOnCanvas(
           break;
         }
         const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
-        const barcodeH = Math.round(rawH * (scale / 3.78));
-        const fontSizePx = Math.round(8.5 * (scale / 2.83));
+        let barcodeH = Math.round(rawH * (scale / 3.78));
+        const fontSizePx = Math.round(10 * (scale / 3.78));
         const digitsH = el.showBarcodeDigits !== false ? fontSizePx + 4 : 0;
+        const maxBarcodeH = Math.round(contentHeight * 0.36);
+        if (barcodeH + digitsH > maxBarcodeH) {
+          barcodeH = Math.max(Math.round(10 * (scale / 3.78)), maxBarcodeH - digitsH);
+        }
         measured.push({ el, height: barcodeH + digitsH, fontSizePx: 0 });
         break;
       }
@@ -441,19 +446,46 @@ export function drawLabelOnCanvas(
     }
   }
 
-  // Расчет вертикального отступа между элементами (Flexbox justify-between)
+  // Расчет вертикального расположения элементов в 100% соответствии с CSS Flexbox justify-between
+  const N = measured.length;
   const totalElementsHeight = measured.reduce((acc, m) => acc + m.height, 0);
   const availableSpace = contentHeight - totalElementsHeight;
-  const numGaps = measured.length > 1 ? measured.length - 1 : 1;
-  const gapBetween = measured.length > 1 ? Math.max(2, availableSpace / numGaps) : 2;
 
-  let currentY = padTop;
+  // flex-shrink: если элементы не помещаются, пропорционально ужимаем высоты
+  const shrinkFactor = availableSpace < 0 && totalElementsHeight > 0
+    ? contentHeight / totalElementsHeight
+    : 1;
 
-  for (const itemM of measured) {
+  const effectiveHeights = measured.map((m) => m.height * shrinkFactor);
+  const totalEffective = effectiveHeights.reduce((acc, h) => acc + h, 0);
+  const freeSpace = Math.max(0, contentHeight - totalEffective);
+  const gap = N > 1 ? freeSpace / (N - 1) : 0;
+
+  const basePositions: number[] = [];
+  let curBaseY = padTop;
+  for (let i = 0; i < N; i++) {
+    if (i === N - 1) {
+      // Последний элемент flexbox justify-between ВСЕГДА прижат к низу контейнера
+      basePositions.push(Math.round(padTop + contentHeight - effectiveHeights[i]));
+    } else {
+      basePositions.push(Math.round(curBaseY));
+      curBaseY += effectiveHeights[i] + gap;
+    }
+  }
+
+  let prevBottomY = 0;
+  const minGap = Math.max(2, Math.round(1 * (scale / 3.7795)));
+
+  for (let idx = 0; idx < N; idx++) {
+    const itemM = measured[idx];
     const { el, fontSizePx } = itemM;
-    const offX = Math.round((el.offsetX || 0) * (scale / 3.78));
-    const offY = Math.round((el.offsetY || 0) * (scale / 3.78));
-    const elementY = currentY + offY;
+    const offX = Math.round((el.offsetX || 0) * (scale / 3.7795));
+    const offY = Math.round((el.offsetY || 0) * (scale / 3.7795));
+    const targetY = basePositions[idx] + offY;
+    // Гарантируем отсутствие взаимного наложения элементов друг на друга
+    const minY = idx > 0 ? prevBottomY + minGap : targetY;
+    const elementY = Math.max(minY, targetY);
+    prevBottomY = elementY + effectiveHeights[idx];
 
     switch (el.type) {
       case 'storeName': {
@@ -483,7 +515,6 @@ export function drawLabelOnCanvas(
           ctx.stroke();
         }
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -509,12 +540,12 @@ export function drawLabelOnCanvas(
           ctx.fillText(lines[i], drawX, elementY + (i + 0.85) * lineHeight);
         }
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
       case 'price': {
-        const priceStr = item.price.toLocaleString('ru-RU');
+        const priceNum = typeof item.price === 'number' ? item.price : Number(item.price) || 0;
+        const priceStr = priceNum.toLocaleString('ru-RU');
         const currStr = (el.currencySymbol || template.config.currencySymbol || 'сум').toUpperCase();
 
         if (el.borderBottom) {
@@ -533,19 +564,24 @@ export function drawLabelOnCanvas(
         ctx.textAlign = 'left';
 
         const priceWidth = ctx.measureText(priceStr).width;
-        let startX = padX + offX;
-
-        if (el.textAlign === 'center') {
-          startX = Math.max(padX, (widthPx - priceWidth - 40) / 2) + offX;
-        } else if (el.textAlign === 'right') {
-          startX = widthPx - padX - priceWidth - 50 + offX;
-        }
-
-        ctx.fillText(priceStr, startX, priceBaseY);
-
         const currFontSize = Math.round(fontSizePx * 0.42);
         ctx.font = `700 ${currFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
-        ctx.fillText(currStr, startX + priceWidth + 5, priceBaseY - 1);
+        const currWidth = ctx.measureText(currStr).width;
+        const currGap = Math.round(4 * (scale / 3.78));
+        const totalBlockWidth = priceWidth + currGap + currWidth;
+
+        let startX = padX + offX;
+        if (el.textAlign === 'center') {
+          startX = Math.max(padX, (widthPx - totalBlockWidth) / 2) + offX;
+        } else if (el.textAlign === 'right') {
+          startX = widthPx - padX - totalBlockWidth + offX;
+        }
+
+        ctx.font = `900 ${fontSizePx}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+        ctx.fillText(priceStr, startX, priceBaseY);
+
+        ctx.font = `700 ${currFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+        ctx.fillText(currStr, startX + priceWidth + currGap, priceBaseY - 1);
 
         if (el.showMeasure !== false) {
           const measureFontSize = Math.round(fontSizePx * 0.35);
@@ -574,7 +610,6 @@ export function drawLabelOnCanvas(
           ctx.stroke();
         }
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -614,7 +649,6 @@ export function drawLabelOnCanvas(
         ctx.lineTo(lineStartX + fullWidth, textY - fontSizePx * 0.35);
         ctx.stroke();
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -645,7 +679,6 @@ export function drawLabelOnCanvas(
         ctx.textAlign = 'center';
         ctx.fillText(text, badgeX + badgeW / 2, elementY + badgeH - 4);
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -655,7 +688,13 @@ export function drawLabelOnCanvas(
         }
 
         const rawH = Math.min(60, Math.max(16, (el.barcodeHeight || 45) / 2.2));
-        const barcodeH = Math.round(rawH * (scale / 3.78));
+        let barcodeH = Math.round(rawH * (scale / 3.78));
+        const barcodeDigitsFontSizePx = Math.round(10 * (scale / 3.78));
+        const digitsH = el.showBarcodeDigits !== false ? barcodeDigitsFontSizePx + 4 : 0;
+        const maxBarcodeH = Math.round(contentHeight * 0.36);
+        if (barcodeH + digitsH > maxBarcodeH) {
+          barcodeH = Math.max(Math.round(10 * (scale / 3.78)), maxBarcodeH - digitsH);
+        }
         const cleanDigits = String(item.barcode || '4780111550194').trim();
 
         // barWidth: модуль штрихкода для термопринтера (203 DPI)
@@ -667,7 +706,6 @@ export function drawLabelOnCanvas(
         while (barWidth > 1 && estModules * barWidth > contentWidth) {
           barWidth -= 1;
         }
-        const fontSizePx = Math.round(8.5 * (scale / 2.83));
 
         const barcodeCanvas = document.createElement('canvas');
         let rendered = false;
@@ -680,10 +718,10 @@ export function drawLabelOnCanvas(
               width: barWidth,
               height: barcodeH,
               displayValue: el.showBarcodeDigits !== false,
-              fontSize: fontSizePx,
+              fontSize: barcodeDigitsFontSizePx,
               font: 'monospace',
               margin: 0,
-              background: '#ffffff',
+              background: 'transparent',
               lineColor: '#000000',
             });
             rendered = true;
@@ -700,10 +738,10 @@ export function drawLabelOnCanvas(
               width: barWidth,
               height: barcodeH,
               displayValue: el.showBarcodeDigits !== false,
-              fontSize: fontSizePx,
+              fontSize: barcodeDigitsFontSizePx,
               font: 'monospace',
               margin: 0,
-              background: '#ffffff',
+              background: 'transparent',
               lineColor: '#000000',
             });
             rendered = true;
@@ -722,7 +760,6 @@ export function drawLabelOnCanvas(
           ctx.drawImage(barcodeCanvas, drawX, elementY);
         }
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -817,7 +854,6 @@ export function drawLabelOnCanvas(
           ctx.fillText(plu, textX, textY);
         }
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -828,7 +864,6 @@ export function drawLabelOnCanvas(
         if (el.textAlign === 'right') qrX = widthPx - padX - qrSize + offX;
 
         drawQrMatrix(ctx, qrX, elementY, qrSize);
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -841,7 +876,6 @@ export function drawLabelOnCanvas(
         ctx.lineTo(widthPx - padX, elementY + 2);
         ctx.stroke();
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -866,7 +900,6 @@ export function drawLabelOnCanvas(
         ctx.fillStyle = '#000000';
         ctx.fillText(fullText, drawX, textBaseY);
 
-        currentY += itemM.height + gapBetween;
         break;
       }
 
@@ -897,7 +930,6 @@ export function drawLabelOnCanvas(
         }
 
         ctx.fillText(finalText, drawX, elementY + fontSizePx * 0.85);
-        currentY += itemM.height + gapBetween;
         break;
       }
     }
@@ -928,7 +960,8 @@ function wrapText(
     if (testWidth > maxWidth && currentLine) {
       lines.push(currentLine);
       currentLine = word;
-      if (lines.length === maxLines - 1) {
+      if (lines.length >= maxLines) {
+        currentLine = '';
         break;
       }
     } else {

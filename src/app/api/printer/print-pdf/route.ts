@@ -1,28 +1,9 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-
-const CONFIG_FILE_PATH = path.join(process.cwd(), '.printer-config.json');
-
-const DEFAULT_URL =
-  process.env.NEXT_PUBLIC_LOCAL_PRINTER_URL?.replace(/\/print$/, '') || 'http://localhost:9100';
-
-async function getPrinterUrl(): Promise<string> {
-  try {
-    const data = await fs.readFile(CONFIG_FILE_PATH, 'utf-8');
-    const parsed = JSON.parse(data);
-    if (parsed.printerUrl && typeof parsed.printerUrl === 'string') {
-      return parsed.printerUrl;
-    }
-  } catch {
-    // fallback
-  }
-  return DEFAULT_URL;
-}
+import { readServerPrinterUrl } from '@/shared/lib/printer-config';
 
 export async function POST(request: Request) {
   try {
-    const printerBase = await getPrinterUrl();
+    const printerBase = await readServerPrinterUrl();
     const payload = await request.json();
 
     const controller = new AbortController();

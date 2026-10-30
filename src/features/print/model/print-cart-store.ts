@@ -30,6 +30,12 @@ export const usePrintCartStore = create<PrintCartState>()(
 
         if (existing) {
           // Silently increment — no toast spam, but ensure plu/aliasList/isWeight/price are updated if missing
+          const effectivePrice =
+            product.wholesalePrice ||
+            (product as any).price ||
+            product.sellingPrice ||
+            0;
+
           set({
             items: items.map((item) =>
               item.barcode === barcodeStr
@@ -39,20 +45,26 @@ export const usePrintCartStore = create<PrintCartState>()(
                     plu: product.aliasList?.[0] || item.plu || plu || '',
                     aliasList: product.aliasList || item.aliasList,
                     isWeight: item.isWeight !== undefined ? item.isWeight : isWeight,
-                    price: product.wholesalePrice || item.price,
+                    price: effectivePrice || item.price || 0,
                   }
                 : item
             ),
           });
         } else {
           toast.success(`"${product.name}" добавлен в очередь`);
+          const effectivePrice =
+            product.wholesalePrice ||
+            (product as any).price ||
+            product.sellingPrice ||
+            0;
+
           set({
             items: [
               ...items,
               {
                 barcode: barcodeStr,
                 name: product.name,
-                price: product.wholesalePrice,
+                price: effectivePrice,
                 measureName: product.measureName || (isWeight ? 'кг.' : 'шт.'),
                 quantity,
                 plu,
